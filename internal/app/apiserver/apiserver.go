@@ -1,16 +1,18 @@
 package apiserver
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/repository"
-	"log"
 	"net/http"
 )
 
 type APIServer struct {
 	BindAddr string
-	repo     *repository.Repository
+	repo     repository.RepoModel
+	context  context.Context
+	srv      *http.Server
 }
 
 func New() *APIServer {
@@ -19,14 +21,20 @@ func New() *APIServer {
 	}
 }
 
-func (s *APIServer) Start() error {
+func (s *APIServer) Shutdown() error {
+	return s.srv.Shutdown(s.context)
+}
+
+func (s *APIServer) Start(ctx context.Context) error {
 	s.repo = repository.New()
+	s.context = ctx
 	r := chi.NewRouter()
+	s.srv = &http.Server{
+		Addr:    s.BindAddr,
+		Handler: r,
+	}
 	r.Post("/", handlers.CreateShort(s.repo))
 	r.Get("/{id:[0-9a-z]+}", handlers.GetShort(s.repo))
-	err := http.ListenAndServe(s.BindAddr, r)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return nil
+	err := s.srv.ListenAndServe()
+	return err
 }

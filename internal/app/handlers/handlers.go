@@ -13,7 +13,7 @@ import (
 
 const HOST = "http://localhost:8080"
 
-func CreateShort(repo *repository.Repository) func(w http.ResponseWriter, r *http.Request) {
+func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -62,7 +62,7 @@ func CreateShort(repo *repository.Repository) func(w http.ResponseWriter, r *htt
 	}
 }
 
-func GetShort(repo *repository.Repository) func(w http.ResponseWriter, r *http.Request) {
+func GetShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathSplit := strings.Split(r.URL.Path, "/")
 
