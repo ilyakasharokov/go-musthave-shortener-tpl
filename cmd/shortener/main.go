@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"ilyakasharokov/internal/app/apiserver"
+	"ilyakasharokov/internal/app/repository"
 	"log"
 	"os"
 	"os/signal"
@@ -10,9 +11,10 @@ import (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := apiserver.New()
+	repo := repository.New()
+	s := apiserver.New(repo, ":8080")
 	go func() {
-		log.Fatal(s.Start(ctx))
+		log.Fatal(s.Start())
 		cancel()
 	}()
 	sigint := make(chan os.Signal, 1)
@@ -22,5 +24,5 @@ func main() {
 		cancel()
 	case <-ctx.Done():
 	}
-	s.Shutdown()
+	s.Cancel(ctx)
 }

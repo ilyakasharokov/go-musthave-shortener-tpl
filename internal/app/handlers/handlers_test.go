@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-const testUrl = "https://yandex.ru"
+const testURL = "https://yandex.ru"
 
 func TestCreateShort(t *testing.T) {
 	type want struct {
@@ -25,7 +25,7 @@ func TestCreateShort(t *testing.T) {
 	}{
 		{
 			name:    "#1 post request test good payload",
-			payload: testUrl,
+			payload: testURL,
 			want: want{
 				code:        http.StatusCreated,
 				contentType: "text/plain; charset=utf-8",
@@ -57,6 +57,7 @@ func TestCreateShort(t *testing.T) {
 			h := http.HandlerFunc(CreateShort(repo))
 			h.ServeHTTP(w, request)
 			res := w.Result()
+			defer res.Body.Close()
 			//status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
@@ -96,7 +97,7 @@ func TestGetShort(t *testing.T) {
 	}
 
 	repo := repository.New()
-	repo.AddItem(testCode, model.Link{URL: testUrl})
+	repo.AddItem(testCode, model.Link{URL: testURL})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,6 +106,7 @@ func TestGetShort(t *testing.T) {
 			h := http.HandlerFunc(GetShort(repo))
 			h.ServeHTTP(w, request)
 			res := w.Result()
+			defer res.Body.Close()
 			//status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 		})

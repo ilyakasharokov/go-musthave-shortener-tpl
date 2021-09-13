@@ -9,32 +9,29 @@ import (
 )
 
 type APIServer struct {
-	BindAddr string
-	repo     repository.RepoModel
-	context  context.Context
-	srv      *http.Server
+	repo repository.RepoModel
+	srv  *http.Server
 }
 
-func New() *APIServer {
-	return &APIServer{
-		BindAddr: ":8080",
-	}
-}
-
-func (s *APIServer) Shutdown() error {
-	return s.srv.Shutdown(s.context)
-}
-
-func (s *APIServer) Start(ctx context.Context) error {
-	s.repo = repository.New()
-	s.context = ctx
+func New(repo repository.RepoModel, addr string) *APIServer {
 	r := chi.NewRouter()
-	s.srv = &http.Server{
-		Addr:    s.BindAddr,
+	r.Post("/", handlers.CreateShort(repo))
+	r.Get("/{id:[0-9a-z]+}", handlers.GetShort(repo))
+	srv := &http.Server{
+		Addr:    addr,
 		Handler: r,
 	}
-	r.Post("/", handlers.CreateShort(s.repo))
-	r.Get("/{id:[0-9a-z]+}", handlers.GetShort(s.repo))
+	return &APIServer{
+		repo: repo,
+		srv:  srv,
+	}
+}
+
+func (s *APIServer) Cancel(ctx context.Context) error {
+	return s.srv.Shutdown(ctx)
+}
+
+func (s *APIServer) Start() error {
 	err := s.srv.ListenAndServe()
 	return err
 }
