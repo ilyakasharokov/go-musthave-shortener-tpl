@@ -119,6 +119,10 @@ func APICreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *ht
 		}{Result: newlink}
 
 		body, err = json.Marshal(result)
+		if err != nil {
+			http.Error(w, "Response JSON error", http.StatusInternalServerError)
+			return
+		}
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
 		w.Write(body)
