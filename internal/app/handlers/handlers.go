@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"ilyakasharokov/internal/app/base62"
 	"ilyakasharokov/internal/app/model"
@@ -10,6 +11,10 @@ import (
 	urltool "net/url"
 	"strings"
 )
+
+type URL struct {
+	URL string `json:"url"`
+}
 
 const HOST = "http://localhost:8080"
 
@@ -59,6 +64,64 @@ func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.
 		w.Header().Add("Content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(result))
+	}
+}
+
+func APICreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Body read error", http.StatusBadRequest)
+			return
+		}
+		url := URL{}
+		err = json.Unmarshal(body, &url)
+		if err != nil {
+			http.Error(w, "JSON is incorrect", http.StatusBadRequest)
+			return
+		}
+		if url.URL == "" {
+			http.Error(w, "URL is empty", http.StatusBadRequest)
+			return
+		}
+
+		_, err = urltool.ParseRequestURI(url.URL)
+
+		if err != nil {
+			http.Error(w, "The url is incorrect", http.StatusBadRequest)
+			return
+		}
+
+		link := model.Link{
+			URL: url.URL,
+		}
+
+		var code string
+		for {
+			code, err = base62.Decode(link.URL)
+			if err != nil {
+				http.Error(w, "URL decode error", http.StatusInternalServerError)
+				return
+			}
+			if !repo.CheckExist(code) {
+				break
+			}
+		}
+		err = repo.AddItem(code, link)
+		if err != nil {
+			http.Error(w, "Add url error", http.StatusInternalServerError)
+			return
+		}
+		newlink := fmt.Sprintf("%s/%s", HOST, code)
+		result := struct {
+			Result string `json:"result"`
+		}{Result: newlink}
+
+		body, err = json.Marshal(result)
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusCreated)
+		w.Write(body)
 	}
 }
 

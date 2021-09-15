@@ -16,6 +16,7 @@ type APIServer struct {
 func New(repo repository.RepoModel, addr string) *APIServer {
 	r := chi.NewRouter()
 	r.Post("/", handlers.CreateShort(repo))
+	r.Post("/api/shorten", handlers.APICreateShort(repo))
 	r.Get("/{id:[0-9a-z]+}", handlers.GetShort(repo))
 	srv := &http.Server{
 		Addr:    addr,
