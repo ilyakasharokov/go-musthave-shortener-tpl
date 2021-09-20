@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/apiserver"
 	"ilyakasharokov/internal/app/repository"
 	"log"
@@ -11,8 +12,9 @@ import (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	repo := repository.New()
-	s := apiserver.New(repo, ":8080")
+	cfg := configuration.New()
+	repo := repository.New(cfg)
+	s := apiserver.New(repo, cfg)
 	go func() {
 		log.Fatal(s.Start())
 		cancel()

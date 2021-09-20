@@ -59,6 +59,7 @@ func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
 		}
+		defer repo.Flush()
 
 		result := fmt.Sprintf("%s/%s", HOST, code)
 		w.Header().Add("Content-type", "text/plain; charset=utf-8")
@@ -67,7 +68,7 @@ func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.
 	}
 }
 
-func APICreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.Request) {
+func APICreateShort(repo repository.RepoModel, baseUrl string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -113,7 +114,8 @@ func APICreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *ht
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
 		}
-		newlink := fmt.Sprintf("%s/%s", HOST, code)
+		defer repo.Flush()
+		newlink := fmt.Sprintf("%s/%s", baseUrl, code)
 		result := struct {
 			Result string `json:"result"`
 		}{Result: newlink}
@@ -123,6 +125,7 @@ func APICreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *ht
 			http.Error(w, "Response JSON error", http.StatusInternalServerError)
 			return
 		}
+
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
 		w.Write(body)
