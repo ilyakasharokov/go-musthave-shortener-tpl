@@ -68,7 +68,7 @@ func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.
 	}
 }
 
-func APICreateShort(repo repository.RepoModel, baseUrl string) func(w http.ResponseWriter, r *http.Request) {
+func APICreateShort(repo repository.RepoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -115,7 +115,7 @@ func APICreateShort(repo repository.RepoModel, baseUrl string) func(w http.Respo
 			return
 		}
 		defer repo.Flush()
-		newlink := fmt.Sprintf("%s/%s", baseUrl, code)
+		newlink := fmt.Sprintf("%s/%s", baseURL, code)
 		result := struct {
 			Result string `json:"result"`
 		}{Result: newlink}
