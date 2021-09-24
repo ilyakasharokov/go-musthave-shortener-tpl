@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"ilyakasharokov/internal/app/base62"
 	"ilyakasharokov/internal/app/model"
-	"ilyakasharokov/internal/app/repository"
 	"io"
 	"net/http"
 	urltool "net/url"
@@ -16,9 +15,14 @@ type URL struct {
 	URL string `json:"url"`
 }
 
-const HOST = "http://localhost:8080"
+type repoModel interface {
+	AddItem(string, model.Link) error
+	GetItem(string) (model.Link, error)
+	CheckExist(string) bool
+	Flush() error
+}
 
-func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.Request) {
+func CreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -61,14 +65,14 @@ func CreateShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.
 		}
 		defer repo.Flush()
 
-		result := fmt.Sprintf("%s/%s", HOST, code)
+		result := fmt.Sprintf("%s/%s", baseURL, code)
 		w.Header().Add("Content-type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(result))
 	}
 }
 
-func APICreateShort(repo repository.RepoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+func APICreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -132,7 +136,7 @@ func APICreateShort(repo repository.RepoModel, baseURL string) func(w http.Respo
 	}
 }
 
-func GetShort(repo repository.RepoModel) func(w http.ResponseWriter, r *http.Request) {
+func GetShort(repo repoModel) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathSplit := strings.Split(r.URL.Path, "/")
 

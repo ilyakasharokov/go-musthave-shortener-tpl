@@ -8,15 +8,16 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cfg := configuration.New()
-	repo := repository.New(cfg)
-	s := apiserver.New(repo, cfg)
+	repo := repository.New(cfg.FileStoragePath)
+	s := apiserver.New(repo, cfg.ServerAddress, cfg.BaseURL)
 	go func() {
-		log.Fatal(s.Start())
+		log.Println(s.Start())
 		cancel()
 	}()
 	sigint := make(chan os.Signal, 1)
@@ -26,5 +27,6 @@ func main() {
 		cancel()
 	case <-ctx.Done():
 	}
-	s.Cancel(ctx)
+	ctxt, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	s.Cancel(ctxt)
 }

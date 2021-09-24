@@ -4,34 +4,15 @@ import (
 	"bufio"
 	"encoding/gob"
 	"fmt"
-	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/model"
 	"io"
 	"log"
 	"os"
 )
 
-type RepoModel interface {
-	AddItem(string, model.Link) error
-	GetItem(string) (model.Link, error)
-	CheckExist(string) bool
-	Flush() error
-	Load() error
-}
-
 type Repository struct {
-	db     map[string]model.Link
-	config configuration.Config
-}
-
-type Producer interface {
-	WriteEvent(event *Repository)
-	Close() error
-}
-
-type Consumer interface {
-	ReadEvent() (*Repository, error)
-	Close() error
+	db              map[string]model.Link
+	fileStoragePath string
 }
 
 type producer struct {
@@ -44,7 +25,7 @@ type consumer struct {
 	scanner *bufio.Scanner
 }
 
-func NewProducer(fileName string) (*producer, error) {
+func newProducer(fileName string) (*producer, error) {
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0777)
 	if err != nil {
 		return nil, err
@@ -56,7 +37,7 @@ func NewProducer(fileName string) (*producer, error) {
 	}, nil
 }
 
-func NewConsumer(fileName string) (*consumer, error) {
+func newConsumer(fileName string) (*consumer, error) {
 	f, err := os.OpenFile(fileName, os.O_RDONLY|os.O_CREATE, 0777)
 	if err != nil {
 		return nil, err
@@ -65,14 +46,6 @@ func NewConsumer(fileName string) (*consumer, error) {
 	return &consumer{
 		file: f,
 	}, nil
-}
-
-func (p *producer) Close() error {
-	return p.file.Close()
-}
-
-func (c *consumer) Close() error {
-	return c.file.Close()
 }
 
 func (repo *Repository) AddItem(key string, link model.Link) error {
@@ -89,22 +62,22 @@ func (repo *Repository) CheckExist(key string) bool {
 	return result
 }
 
-func New(cfg configuration.Config) *Repository {
+func New(fileStoragePath string) *Repository {
 	db := make(map[string]model.Link)
 	repo := Repository{
-		db:     db,
-		config: cfg,
+		db:              db,
+		fileStoragePath: fileStoragePath,
 	}
-	repo.Load()
+	repo.load()
 	return &repo
 }
 
 func (repo *Repository) Flush() error {
-	if repo.config.FileStoragePath == "" {
+	if repo.fileStoragePath == "" {
 		return nil
 	}
 	// Create new producer for write links to file storage
-	p, err := NewProducer(repo.config.FileStoragePath)
+	p, err := newProducer(repo.fileStoragePath)
 	if nil != err {
 		return err
 	}
@@ -112,25 +85,25 @@ func (repo *Repository) Flush() error {
 	gobEncoder := gob.NewEncoder(p.writer)
 	// encode
 	if err := gobEncoder.Encode(repo.db); err != nil {
-		panic(err)
+		return err
 	}
 	fmt.Println("flush")
 	return p.writer.Flush()
 }
 
 // Load all links to map
-func (repo *Repository) Load() error {
-	if repo.config.FileStoragePath == "" {
+func (repo *Repository) load() error {
+	if repo.fileStoragePath == "" {
 		return nil
 	}
-	cns, err := NewConsumer(repo.config.FileStoragePath)
+	cns, err := newConsumer(repo.fileStoragePath)
 	if nil != err {
 		return err
 	}
 	gobDecoder := gob.NewDecoder(cns.file)
 	if err := gobDecoder.Decode(&repo.db); err != nil {
 		if err != io.EOF {
-			panic(err)
+			return err
 		}
 	}
 	log.Println(repo.db)

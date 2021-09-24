@@ -15,7 +15,6 @@ import (
 const testURL = "https://yandex.ru"
 
 var cfg = configuration.Config{
-	ServerAddress:   "http://localhost:8080",
 	BaseURL:         "http://example.com",
 	FileStoragePath: "",
 }
@@ -56,13 +55,13 @@ func TestCreateShort(t *testing.T) {
 		},
 	}
 
-	repo := repository.New(cfg)
+	repo := repository.New(cfg.FileStoragePath)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.payload))
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(CreateShort(repo))
+			h := http.HandlerFunc(CreateShort(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -104,7 +103,7 @@ func TestGetShort(t *testing.T) {
 		},
 	}
 
-	repo := repository.New(cfg)
+	repo := repository.New(cfg.FileStoragePath)
 	repo.AddItem(testCode, model.Link{URL: testURL})
 
 	for _, tt := range tests {
@@ -157,13 +156,13 @@ func TestAPICreateShort(t *testing.T) {
 		},
 	}
 
-	repo := repository.New(cfg)
+	repo := repository.New(cfg.FileStoragePath)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.payload))
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(CreateShort(repo))
+			h := http.HandlerFunc(CreateShort(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()

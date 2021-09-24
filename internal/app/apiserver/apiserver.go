@@ -3,28 +3,27 @@ package apiserver
 import (
 	"context"
 	"github.com/go-chi/chi/v5"
-	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/repository"
 	"net/http"
 )
 
 type APIServer struct {
-	repo repository.RepoModel
+	repo repository.Repository
 	srv  *http.Server
 }
 
-func New(repo repository.RepoModel, cfg configuration.Config) *APIServer {
+func New(repo *repository.Repository, serverAddress string, baseURL string) *APIServer {
 	r := chi.NewRouter()
-	r.Post("/", handlers.CreateShort(repo))
-	r.Post("/api/shorten", handlers.APICreateShort(repo, cfg.BaseURL))
+	r.Post("/", handlers.CreateShort(repo, baseURL))
+	r.Post("/api/shorten", handlers.APICreateShort(repo, baseURL))
 	r.Get("/{id:[0-9a-z]+}", handlers.GetShort(repo))
 	srv := &http.Server{
-		Addr:    cfg.ServerAddress,
+		Addr:    serverAddress,
 		Handler: r,
 	}
 	return &APIServer{
-		repo: repo,
+		repo: *repo,
 		srv:  srv,
 	}
 }
