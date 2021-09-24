@@ -27,6 +27,7 @@ func main() {
 		cancel()
 	case <-ctx.Done():
 	}
-	ctxt, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxt, cancelt := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelt()
 	s.Cancel(ctxt)
 }
