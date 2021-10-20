@@ -15,6 +15,7 @@ type Config struct {
 	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"http://localhost:8080"`
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:""`
+	Database        string `env:"DATABASE_DSN"`
 }
 
 func New() Config {
@@ -27,6 +28,7 @@ func New() Config {
 	bu := flag.String(paramNames["BASE_URL"], "", "")
 	sa := flag.String(paramNames["SERVER_ADDRESS"], "", "")
 	fs := flag.String(paramNames["FILE_STORAGE_PATH"], "", "")
+	db := flag.String(paramNames["DATABASE_DSN"], "", "")
 	flag.Parse()
 	if *bu != "" {
 		c.BaseURL = *bu
@@ -36,6 +38,9 @@ func New() Config {
 	}
 	if *fs != "" {
 		c.FileStoragePath = *fs
+	}
+	if *db != "" {
+		c.Database = *db
 	}
 	return c
 }

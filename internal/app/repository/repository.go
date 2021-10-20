@@ -3,6 +3,7 @@ package repository
 import (
 	"bufio"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"ilyakasharokov/internal/app/model"
 	"io"
@@ -11,7 +12,7 @@ import (
 )
 
 type Repository struct {
-	db              map[string]model.Link
+	db              map[model.User]model.Links
 	fileStoragePath string
 }
 
@@ -48,22 +49,39 @@ func newConsumer(fileName string) (*consumer, error) {
 	}, nil
 }
 
-func (repo *Repository) AddItem(key string, link model.Link) error {
-	repo.db[key] = link
+func (repo *Repository) AddItem(user model.User, key string, link model.Link) error {
+	links := model.Links{}
+	if userLinks, ok := repo.db[user]; ok {
+		links = userLinks
+	}
+	links[key] = link
+	repo.db[user] = links
 	return nil
 }
 
-func (repo *Repository) GetItem(key string) (model.Link, error) {
-	return repo.db[key], nil
+func (repo *Repository) GetItem(user model.User, key string) (model.Link, error) {
+	return repo.db[user][key], nil
 }
 
-func (repo *Repository) CheckExist(key string) bool {
-	_, result := repo.db[key]
+func (repo *Repository) GetByUser(user model.User) (model.Links, error) {
+	links, ok := repo.db[user]
+	if !ok {
+		return links, errors.New("User not found")
+	}
+	return links, nil
+}
+
+func (repo *Repository) CheckExist(user model.User, key string) bool {
+	links, ok := repo.db[user]
+	if !ok {
+		return false
+	}
+	_, result := links[key]
 	return result
 }
 
 func New(fileStoragePath string) *Repository {
-	db := make(map[string]model.Link)
+	db := make(map[model.User]model.Links)
 	repo := Repository{
 		db:              db,
 		fileStoragePath: fileStoragePath,

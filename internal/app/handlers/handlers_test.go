@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/model"
 	"ilyakasharokov/internal/app/repository"
+	"ilyakasharokov/internal/mocks"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +15,8 @@ import (
 )
 
 const testURL = "https://yandex.ru"
+const testUser = model.User("default")
+const testCode = "1692759882237307797"
 
 var cfg = configuration.Config{
 	BaseURL:         "http://example.com",
@@ -75,7 +79,6 @@ func TestCreateShort(t *testing.T) {
 }
 
 func TestGetShort(t *testing.T) {
-	const testCode = "1692759882237307797"
 	type want struct {
 		code        int
 		contentType string
@@ -103,8 +106,9 @@ func TestGetShort(t *testing.T) {
 		},
 	}
 
-	repo := repository.New(cfg.FileStoragePath)
-	repo.AddItem(testCode, model.Link{URL: testURL})
+	repo := new(mocks.RepoModel)
+	repo.On("GetItem", model.User(testUser), testCode).Return(model.Link{URL: testURL}, nil)
+	repo.On("GetItem", model.User(testUser), "_").Return(model.Link{}, errors.New("Not found"))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

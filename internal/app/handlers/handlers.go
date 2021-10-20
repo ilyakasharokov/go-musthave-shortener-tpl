@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"ilyakasharokov/internal/app/base62"
+	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/model"
 	"io"
+	"io/ioutil"
 	"net/http"
 	urltool "net/url"
 	"strings"
@@ -15,14 +19,22 @@ type URL struct {
 	URL string `json:"url"`
 }
 
-type repoModel interface {
-	AddItem(string, model.Link) error
-	GetItem(string) (model.Link, error)
-	CheckExist(string) bool
-	Flush() error
+type RepoModel interface {
+	AddItem(model.User, string, model.Link) error
+	GetItem(model.User, string) (model.Link, error)
+	CheckExist(model.User, string) bool
+	GetByUser(model.User) (model.Links, error)
 }
 
-func CreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+type RepoDBModel interface {
+	AddItem(model.User, string, model.Link) error
+	GetItem(model.User, string) (model.Link, error)
+	CheckExist(model.User, string) bool
+	GetByUser(model.User) (model.Links, error)
+	BunchSave([]model.Link) ([]model.ShortLink, error)
+}
+
+func CreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -43,6 +55,13 @@ func CreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *
 			return
 		}
 
+		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
+		userID := "default"
+		if userIDCtx != nil {
+			// Convert interface type to user.UniqUser
+			userID = userIDCtx.(string)
+		}
+
 		link := model.Link{
 			URL: url,
 		}
@@ -54,16 +73,15 @@ func CreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *
 				http.Error(w, "URL decode error", http.StatusInternalServerError)
 				return
 			}
-			if !repo.CheckExist(code) {
+			if !repo.CheckExist(model.User(userID), code) {
 				break
 			}
 		}
-		err = repo.AddItem(code, link)
+		err = repo.AddItem(model.User(userID), code, link)
 		if err != nil {
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
 		}
-		defer repo.Flush()
 
 		result := fmt.Sprintf("%s/%s", baseURL, code)
 		w.Header().Add("Content-type", "text/plain; charset=utf-8")
@@ -72,7 +90,7 @@ func CreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *
 	}
 }
 
-func APICreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -98,6 +116,13 @@ func APICreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, 
 			return
 		}
 
+		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
+		userID := "default"
+		if userIDCtx != nil {
+			// Convert interface type to user.UniqUser
+			userID = userIDCtx.(string)
+		}
+
 		link := model.Link{
 			URL: url.URL,
 		}
@@ -109,16 +134,15 @@ func APICreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, 
 				http.Error(w, "URL decode error", http.StatusInternalServerError)
 				return
 			}
-			if !repo.CheckExist(code) {
+			if !repo.CheckExist(model.User(userID), code) {
 				break
 			}
 		}
-		err = repo.AddItem(code, link)
+		err = repo.AddItem(model.User(userID), code, link)
 		if err != nil {
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
 		}
-		defer repo.Flush()
 		newlink := fmt.Sprintf("%s/%s", baseURL, code)
 		result := struct {
 			Result string `json:"result"`
@@ -136,7 +160,7 @@ func APICreateShort(repo repoModel, baseURL string) func(w http.ResponseWriter, 
 	}
 }
 
-func GetShort(repo repoModel) func(w http.ResponseWriter, r *http.Request) {
+func GetShort(repo RepoModel) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathSplit := strings.Split(r.URL.Path, "/")
 
@@ -146,16 +170,109 @@ func GetShort(repo repoModel) func(w http.ResponseWriter, r *http.Request) {
 		}
 		id := pathSplit[1]
 
-		entity, err := repo.GetItem(id)
-		if err != nil {
-			http.Error(w, "Get url error", http.StatusInternalServerError)
-			return
+		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
+		userID := "default"
+		if userIDCtx != nil {
+			// Convert interface type to user.UniqUser
+			userID = userIDCtx.(string)
 		}
 
-		if entity.URL == "" {
+		entity, err := repo.GetItem(model.User(userID), id)
+
+		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
 		http.Redirect(w, r, entity.URL, http.StatusTemporaryRedirect)
+	}
+}
+
+func GetUserShorts(repo RepoModel) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
+		userID := "default"
+		if userIDCtx != nil {
+			// Convert interface type to user.UniqUser
+			userID = userIDCtx.(string)
+		}
+
+		links, err := repo.GetByUser(model.User(userID))
+		if err != nil {
+			http.Error(w, "No content", http.StatusNoContent)
+			return
+		}
+
+		body, err := links.MarshalJSON()
+
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	}
+}
+
+func bodyFromJSON(w *http.ResponseWriter, r *http.Request) ([]byte, error) {
+	var body []byte
+	if r.Body == http.NoBody {
+		http.Error(*w, "No content", http.StatusBadRequest)
+		return body, errors.New("Bad request")
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(*w, "Unknown url", http.StatusBadRequest)
+		return body, errors.New("Unknown url")
+	}
+	return body, nil
+}
+
+// BunchSaveJSON save data and return from mass
+func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := bodyFromJSON(&w, r)
+		if err != nil {
+			http.Error(w, "Unknown url", http.StatusBadRequest)
+			return
+		}
+		// Get url from json data
+		var urls []model.Link
+		err = json.Unmarshal(body, &urls)
+		if err != nil {
+			http.Error(w, "Bad json", http.StatusBadRequest)
+			return
+		}
+		shorts, err := repo.BunchSave(urls)
+		if err != nil {
+			http.Error(w, "Can't save", http.StatusBadRequest)
+			return
+		}
+		// Prepare results
+		for k := range shorts {
+			shorts[k].Short = fmt.Sprintf("%s/%s", baseURL, shorts[k].Short)
+		}
+
+		body, err = json.Marshal(shorts)
+		if err == nil {
+			// Prepare response
+			w.Header().Add("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusCreated)
+			_, err = w.Write(body)
+			if err == nil {
+				return
+			}
+		}
+		http.Error(w, "DB error", http.StatusBadRequest)
+	}
+}
+
+func Ping(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := db.PingContext(r.Context())
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 }
