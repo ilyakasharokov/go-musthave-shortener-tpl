@@ -95,7 +95,7 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Body read error", http.StatusBadRequest)
+			http.Error(w, "body read error", http.StatusBadRequest)
 			return
 		}
 		url := URL{}
@@ -112,7 +112,7 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 		_, err = urltool.ParseRequestURI(url.URL)
 
 		if err != nil {
-			http.Error(w, "The url is incorrect", http.StatusBadRequest)
+			http.Error(w, "the url is incorrect", http.StatusBadRequest)
 			return
 		}
 
@@ -140,7 +140,7 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 		}
 		err = repo.AddItem(model.User(userID), code, link)
 		if err != nil {
-			http.Error(w, "Add url error", http.StatusInternalServerError)
+			http.Error(w, "add url error", http.StatusInternalServerError)
 			return
 		}
 		newlink := fmt.Sprintf("%s/%s", baseURL, code)
@@ -150,7 +150,7 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 
 		body, err = json.Marshal(result)
 		if err != nil {
-			http.Error(w, "Response JSON error", http.StatusInternalServerError)
+			http.Error(w, "response JSON error", http.StatusInternalServerError)
 			return
 		}
 
@@ -199,11 +199,15 @@ func GetUserShorts(repo RepoModel) func(w http.ResponseWriter, r *http.Request) 
 
 		links, err := repo.GetByUser(model.User(userID))
 		if err != nil {
-			http.Error(w, "No content", http.StatusNoContent)
+			http.Error(w, "no content", http.StatusNoContent)
 			return
 		}
 
 		body, err := links.MarshalJSON()
+		if err != nil {
+			http.Error(w, "json error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -214,13 +218,13 @@ func GetUserShorts(repo RepoModel) func(w http.ResponseWriter, r *http.Request) 
 func bodyFromJSON(w *http.ResponseWriter, r *http.Request) ([]byte, error) {
 	var body []byte
 	if r.Body == http.NoBody {
-		http.Error(*w, "No content", http.StatusBadRequest)
-		return body, errors.New("Bad request")
+		http.Error(*w, "no content", http.StatusBadRequest)
+		return body, errors.New("bad request")
 	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(*w, "Unknown url", http.StatusBadRequest)
-		return body, errors.New("Unknown url")
+		http.Error(*w, "unknown url", http.StatusBadRequest)
+		return body, errors.New("unknown url")
 	}
 	return body, nil
 }
@@ -230,19 +234,19 @@ func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter,
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := bodyFromJSON(&w, r)
 		if err != nil {
-			http.Error(w, "Unknown url", http.StatusBadRequest)
+			http.Error(w, "unknown url", http.StatusBadRequest)
 			return
 		}
 		// Get url from json data
 		var urls []model.Link
 		err = json.Unmarshal(body, &urls)
 		if err != nil {
-			http.Error(w, "Bad json", http.StatusBadRequest)
+			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
 		shorts, err := repo.BunchSave(urls)
 		if err != nil {
-			http.Error(w, "Can't save", http.StatusBadRequest)
+			http.Error(w, "can't save", http.StatusBadRequest)
 			return
 		}
 		// Prepare results
@@ -273,6 +277,5 @@ func Ping(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		return
 	}
 }
