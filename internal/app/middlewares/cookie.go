@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"ilyakasharokov/internal/app/encryptor"
 	"net/http"
@@ -36,7 +37,7 @@ func CookieMiddleware(next http.Handler) http.Handler {
 			}
 			http.SetCookie(w, cookie)
 		} else {
-			// logger.Info("Encode cookie error", zap.Error(err))
+			fmt.Println(err)
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), UserIDCtxName, userID)))
 	})

@@ -66,7 +66,7 @@ func (repo *Repository) GetItem(user model.User, key string) (model.Link, error)
 func (repo *Repository) GetByUser(user model.User) (model.Links, error) {
 	links, ok := repo.db[user]
 	if !ok {
-		return links, errors.New("User not found")
+		return links, errors.New("user not found")
 	}
 	return links, nil
 }

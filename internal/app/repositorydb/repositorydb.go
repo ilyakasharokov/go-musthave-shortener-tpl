@@ -48,6 +48,10 @@ func (repo *RepositoryDB) GetByUser(user model.User) (model.Links, error) {
 	if err != nil {
 		return model.Links{}, err
 	}
+	defer func() {
+		_ = result.Close()
+		_ = result.Err() // or modify return value
+	}()
 	for result.Next() {
 		link := model.Link{}
 		var key string
@@ -66,6 +70,10 @@ func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	if err != nil {
 		return false
 	}
+	defer func() {
+		_ = result.Close()
+		_ = result.Err() // or modify return value
+	}()
 	result.Scan(&exist)
 	return exist
 }
