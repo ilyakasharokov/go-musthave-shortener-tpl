@@ -77,15 +77,23 @@ func CreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *
 				break
 			}
 		}
+		link, err = repo.GetItem(model.User(userID), code)
+		result := fmt.Sprintf("%s/%s", baseURL, code)
+		if err == nil {
+			http.Error(w, "Already exist", http.StatusConflict)
+			w.Header().Add("Content-type", "text/plain; charset=utf-8")
+			w.Write([]byte(result))
+			return
+		}
+
 		err = repo.AddItem(model.User(userID), code, link)
 		if err != nil {
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
+		} else {
+			w.WriteHeader(http.StatusCreated)
 		}
-
-		result := fmt.Sprintf("%s/%s", baseURL, code)
 		w.Header().Add("Content-type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(result))
 	}
 }
@@ -138,15 +146,31 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 				break
 			}
 		}
-		err = repo.AddItem(model.User(userID), code, link)
-		if err != nil {
-			http.Error(w, "add url error", http.StatusInternalServerError)
-			return
-		}
+
+		link, err = repo.GetItem(model.User(userID), code)
 		newlink := fmt.Sprintf("%s/%s", baseURL, code)
 		result := struct {
 			Result string `json:"result"`
 		}{Result: newlink}
+		if err == nil {
+			http.Error(w, "Already exist", http.StatusConflict)
+			body, err = json.Marshal(result)
+			if err != nil {
+				http.Error(w, "response JSON error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Add("Content-Type", "application/json; charset=utf-8")
+			w.Write(body)
+			return
+		}
+
+		err = repo.AddItem(model.User(userID), code, link)
+		if err != nil {
+			http.Error(w, "Add url error", http.StatusInternalServerError)
+			return
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
 
 		body, err = json.Marshal(result)
 		if err != nil {
@@ -155,7 +179,6 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 		}
 
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
 		w.Write(body)
 	}
 }

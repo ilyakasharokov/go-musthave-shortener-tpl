@@ -3,6 +3,7 @@ package repositorydb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	helpers "ilyakasharokov/internal/app/encryptor"
 	"ilyakasharokov/internal/app/model"
@@ -11,6 +12,8 @@ import (
 type RepositoryDB struct {
 	db *sql.DB
 }
+
+var ErrAlreadyExist = errors.New("already exist")
 
 func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link) error {
 	sql := `
@@ -76,6 +79,24 @@ func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	}()
 	result.Scan(&exist)
 	return exist
+}
+
+func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string) model.ShortLink {
+	var link = model.ShortLink{}
+	sql := `
+		select * from urls where user_id=$1 and origin_url=$2
+	`
+	result := repo.db.QueryRowContext(context.Background(), sql, user, key)
+	err := result.Scan(&link.Short)
+	if err != nil {
+		return link
+	}
+
+	defer func() {
+		_ = result.Err() // or modify return value
+	}()
+	result.Scan(&link)
+	return link
 }
 
 func (repo *RepositoryDB) BunchSave(links []model.Link) ([]model.ShortLink, error) {

@@ -21,9 +21,9 @@ func SetupDatabase(db *sql.DB, ctx context.Context) error {
 	sqlCreateDB := `CREATE TABLE IF NOT EXISTS urls (
 								id serial PRIMARY KEY,
 								user_id uuid DEFAULT uuid_generate_v4 (), 	
-								origin_url VARCHAR NOT NULL, 
+								origin_url VARCHAR NOT NULL UNIQUE, 
 								short_url VARCHAR NOT NULL UNIQUE,
-    							correlation_id VARCHAR NOT NULL UNIQUE 
+    							correlation_id VARCHAR  
 					);`
 	res, err := db.ExecContext(ctx, sqlCreateDB)
 	log.Println("Create table", err, res)
