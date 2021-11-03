@@ -15,13 +15,13 @@ type RepositoryDB struct {
 
 var ErrAlreadyExist = errors.New("already exist")
 
-func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link) error {
+func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, ctx context.Context) error {
 	sql := `
 	insert into urls (id, user_id, origin_url, short_url) 
 	values (default, $1, $2, $3)
 	ON CONFLICT (short_url) DO NOTHING
 	`
-	_, err := repo.db.ExecContext(context.Background(), sql, user, link.URL, key)
+	_, err := repo.db.ExecContext(ctx, sql, user, link.URL, key)
 	if err != nil {
 		return err
 	}
@@ -29,11 +29,11 @@ func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link) 
 	return nil
 }
 
-func (repo *RepositoryDB) GetItem(user model.User, key string) (model.Link, error) {
+func (repo *RepositoryDB) GetItem(user model.User, key string, ctx context.Context) (model.Link, error) {
 	sql := `
 		select origin_url from urls where user_id=$1 and short_url=$2
 	`
-	result := repo.db.QueryRowContext(context.Background(), sql, user, key)
+	result := repo.db.QueryRowContext(ctx, sql, user, key)
 	link := model.Link{}
 	err := result.Scan(&link.URL)
 	if err != nil {
@@ -42,12 +42,12 @@ func (repo *RepositoryDB) GetItem(user model.User, key string) (model.Link, erro
 	return link, nil
 }
 
-func (repo *RepositoryDB) GetByUser(user model.User) (model.Links, error) {
+func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model.Links, error) {
 	sql := `
 		select origin_url, short_url from urls where user_id=$1
 	`
 	links := model.Links{}
-	result, err := repo.db.QueryContext(context.Background(), sql, user)
+	result, err := repo.db.QueryContext(ctx, sql, user)
 	if err != nil {
 		return model.Links{}, err
 	}
@@ -81,12 +81,12 @@ func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	return exist
 }
 
-func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string) model.ShortLink {
+func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string, ctx context.Context) model.ShortLink {
 	var link = model.ShortLink{}
 	sql := `
-		select * from urls where user_id=$1 and origin_url=$2
+		select short_url from urls where user_id=$1 and origin_url=$2
 	`
-	result := repo.db.QueryRowContext(context.Background(), sql, user, key)
+	result := repo.db.QueryRowContext(ctx, sql, user, key)
 	err := result.Scan(&link.Short)
 	if err != nil {
 		return link
@@ -99,7 +99,7 @@ func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string) model.Sh
 	return link
 }
 
-func (repo *RepositoryDB) BunchSave(links []model.Link) ([]model.ShortLink, error) {
+func (repo *RepositoryDB) BunchSave(ctx context.Context, user model.User, links []model.Link) ([]model.ShortLink, error) {
 	// Generate shorts
 	type temp struct {
 		ID,
@@ -119,9 +119,6 @@ func (repo *RepositoryDB) BunchSave(links []model.Link) ([]model.ShortLink, erro
 	dbd := repo.db
 	var shorts []model.ShortLink
 
-	// Delete old records for tests
-	_, _ = dbd.Exec("truncate table urls;")
-
 	// Start transaction
 	tx, err := dbd.Begin()
 	if err != nil {
@@ -132,7 +129,7 @@ func (repo *RepositoryDB) BunchSave(links []model.Link) ([]model.ShortLink, erro
 		_ = tx.Rollback()
 	}(tx)
 	// Prepare statement
-	stmt, err := tx.PrepareContext(context.Background(), `
+	stmt, err := tx.PrepareContext(ctx, `
 		insert into urls (id, user_id, origin_url, short_url, correlation_id) 
 		values (default, $1, $2, $3, $4)
 		on conflict (short_url) do nothing;
@@ -150,7 +147,8 @@ func (repo *RepositoryDB) BunchSave(links []model.Link) ([]model.ShortLink, erro
 
 	for _, v := range buffer {
 		// Add record to transaction
-		if _, err = stmt.ExecContext(context.Background(), "e210091c-3196-11ec-b01c-3e22fb9798bf", v.Origin, v.Short, v.ID); err == nil {
+		fmt.Println(v.Origin)
+		if _, err = stmt.ExecContext(ctx, user, v.Origin, v.Short, v.ID); err == nil {
 			shorts = append(shorts, model.ShortLink{
 				Short: v.Short,
 				ID:    v.ID,

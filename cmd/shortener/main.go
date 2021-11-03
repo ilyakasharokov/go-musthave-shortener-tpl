@@ -19,7 +19,7 @@ func main() {
 	cfg := configuration.New()
 	db, err := sql.Open("postgres", cfg.Database)
 	if err != nil {
-		log.Println(err)
+		return
 	}
 	defer db.Close()
 	dbservice.SetupDatabase(db, ctx)

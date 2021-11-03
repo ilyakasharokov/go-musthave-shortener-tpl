@@ -12,7 +12,7 @@ type UserLink struct {
 }
 
 func (links Links) MarshalJSON() ([]byte, error) {
-	linksPrepared := make([]UserLink, 0)
+	var linksPrepared []UserLink
 	for k, v := range links {
 		linksPrepared = append(linksPrepared, UserLink{
 			ShortURL:    k,

@@ -7,7 +7,6 @@ import (
 	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/mocks"
 	"ilyakasharokov/internal/app/model"
-	"ilyakasharokov/internal/app/repository"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -38,7 +37,7 @@ func TestCreateShort(t *testing.T) {
 			payload: testURL,
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 		},
 		{
@@ -59,11 +58,14 @@ func TestCreateShort(t *testing.T) {
 		},
 	}
 
-	repo := repository.New(cfg.FileStoragePath)
-
+	repo := new(mocks.RepoDBModel)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			repo.On("CheckExist", model.User(testUser), testCode).Return(false)
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.payload))
+			repo.On("GetItem", model.User(testUser), testCode, request.Context()).Return(model.Link{}, errors.New("not found"))
+			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: ""}, request.Context()).Return(nil)
+			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: tt.payload}, request.Context()).Return(nil)
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(CreateShort(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
@@ -73,7 +75,7 @@ func TestCreateShort(t *testing.T) {
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
 			//content-type
-			assert.EqualValues(t, res.Header.Get("Content-Type"), tt.want.contentType)
+			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
 }
@@ -106,13 +108,13 @@ func TestGetShort(t *testing.T) {
 		},
 	}
 
-	repo := new(mocks.RepoModel)
-	repo.On("GetItem", model.User(testUser), testCode).Return(model.Link{URL: testURL}, nil)
-	repo.On("GetItem", model.User(testUser), "_").Return(model.Link{}, errors.New("Not found"))
+	repo := new(mocks.RepoDBModel)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/%s", tt.path), nil)
+			repo.On("GetItem", model.User(testUser), "_", request.Context()).Return(model.Link{}, errors.New("Not found"))
+			repo.On("GetItem", model.User(testUser), testCode, request.Context()).Return(model.Link{URL: testURL}, nil)
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(GetShort(repo))
 			h.ServeHTTP(w, request)
@@ -130,29 +132,33 @@ func TestAPICreateShort(t *testing.T) {
 		contentType string
 	}
 	tests := []struct {
-		name    string
-		payload string
-		want    want
+		name          string
+		payload       string
+		addItemResult error
+		want          want
 	}{
 		{
-			name:    "#1 post request test good payload",
-			payload: testURL,
+			name:          "#1 post request test good payload",
+			payload:       testURL,
+			addItemResult: nil,
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 		},
 		{
-			name:    "#2 post request test empty payload",
-			payload: "",
+			name:          "#2 post request test empty payload",
+			payload:       "",
+			addItemResult: errors.New("add url error"),
 			want: want{
 				code:        http.StatusBadRequest,
 				contentType: "text/plain; charset=utf-8",
 			},
 		},
 		{
-			name:    "#2 post request test not an url",
-			payload: "asdfasfsa",
+			name:          "#2 post request test not an url",
+			payload:       "asdfasfsa",
+			addItemResult: errors.New("add url error"),
 			want: want{
 				code:        http.StatusBadRequest,
 				contentType: "text/plain; charset=utf-8",
@@ -160,11 +166,15 @@ func TestAPICreateShort(t *testing.T) {
 		},
 	}
 
-	repo := repository.New(cfg.FileStoragePath)
+	repo := new(mocks.RepoDBModel)
+	repo.On("CheckExist", model.User(testUser), testCode).Return(false)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.payload))
+			repo.On("GetItem", model.User(testUser), testCode, request.Context()).Return(model.Link{}, errors.New("not found"))
+			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: tt.payload}, request.Context()).Return(tt.addItemResult)
+			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: ""}, request.Context()).Return(tt.addItemResult)
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(CreateShort(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
@@ -174,7 +184,7 @@ func TestAPICreateShort(t *testing.T) {
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
 			//content-type
-			assert.EqualValues(t, res.Header.Get("Content-Type"), tt.want.contentType)
+			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
 }

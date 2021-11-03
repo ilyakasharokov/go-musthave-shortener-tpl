@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -27,14 +28,14 @@ type RepoModel interface {
 }
 
 type RepoDBModel interface {
-	AddItem(model.User, string, model.Link) error
-	GetItem(model.User, string) (model.Link, error)
+	AddItem(model.User, string, model.Link, context.Context) error
+	GetItem(model.User, string, context.Context) (model.Link, error)
 	CheckExist(model.User, string) bool
-	GetByUser(model.User) (model.Links, error)
-	BunchSave([]model.Link) ([]model.ShortLink, error)
+	GetByUser(model.User, context.Context) (model.Links, error)
+	BunchSave(context.Context, model.User, []model.Link) ([]model.ShortLink, error)
 }
 
-func CreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+func CreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -77,7 +78,7 @@ func CreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *
 				break
 			}
 		}
-		link, err = repo.GetItem(model.User(userID), code)
+		link, err = repo.GetItem(model.User(userID), code, r.Context())
 		result := fmt.Sprintf("%s/%s", baseURL, code)
 		if err == nil {
 			http.Error(w, "Already exist", http.StatusConflict)
@@ -86,7 +87,7 @@ func CreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *
 			return
 		}
 
-		err = repo.AddItem(model.User(userID), code, link)
+		err = repo.AddItem(model.User(userID), code, link, r.Context())
 		if err != nil {
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
@@ -98,7 +99,7 @@ func CreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *
 	}
 }
 
-func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+func APICreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -147,24 +148,24 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 			}
 		}
 
-		link, err = repo.GetItem(model.User(userID), code)
+		_, err = repo.GetItem(model.User(userID), code, r.Context())
 		newlink := fmt.Sprintf("%s/%s", baseURL, code)
 		result := struct {
 			Result string `json:"result"`
 		}{Result: newlink}
 		if err == nil {
-			http.Error(w, "Already exist", http.StatusConflict)
+			w.Header().Add("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusConflict)
 			body, err = json.Marshal(result)
 			if err != nil {
 				http.Error(w, "response JSON error", http.StatusInternalServerError)
 				return
 			}
-			w.Header().Add("Content-Type", "application/json; charset=utf-8")
 			w.Write(body)
 			return
 		}
 
-		err = repo.AddItem(model.User(userID), code, link)
+		err = repo.AddItem(model.User(userID), code, link, r.Context())
 		if err != nil {
 			http.Error(w, "Add url error", http.StatusInternalServerError)
 			return
@@ -178,12 +179,11 @@ func APICreateShort(repo RepoModel, baseURL string) func(w http.ResponseWriter, 
 			return
 		}
 
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.Write(body)
 	}
 }
 
-func GetShort(repo RepoModel) func(w http.ResponseWriter, r *http.Request) {
+func GetShort(repo RepoDBModel) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathSplit := strings.Split(r.URL.Path, "/")
 
@@ -200,7 +200,7 @@ func GetShort(repo RepoModel) func(w http.ResponseWriter, r *http.Request) {
 			userID = userIDCtx.(string)
 		}
 
-		entity, err := repo.GetItem(model.User(userID), id)
+		entity, err := repo.GetItem(model.User(userID), id, r.Context())
 
 		if err != nil {
 			http.Error(w, "Not found", http.StatusNotFound)
@@ -210,7 +210,7 @@ func GetShort(repo RepoModel) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetUserShorts(repo RepoModel) func(w http.ResponseWriter, r *http.Request) {
+func GetUserShorts(repo RepoDBModel) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
@@ -220,7 +220,7 @@ func GetUserShorts(repo RepoModel) func(w http.ResponseWriter, r *http.Request) 
 			userID = userIDCtx.(string)
 		}
 
-		links, err := repo.GetByUser(model.User(userID))
+		links, err := repo.GetByUser(model.User(userID), r.Context())
 		if err != nil {
 			http.Error(w, "no content", http.StatusNoContent)
 			return
@@ -260,6 +260,12 @@ func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter,
 			http.Error(w, "unknown url", http.StatusBadRequest)
 			return
 		}
+		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
+		userID := "default"
+		if userIDCtx != nil {
+			// Convert interface type to user.UniqUser
+			userID = userIDCtx.(string)
+		}
 		// Get url from json data
 		var urls []model.Link
 		err = json.Unmarshal(body, &urls)
@@ -267,7 +273,7 @@ func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter,
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
-		shorts, err := repo.BunchSave(urls)
+		shorts, err := repo.BunchSave(r.Context(), model.User(userID), urls)
 		if err != nil {
 			http.Error(w, "can't save", http.StatusBadRequest)
 			return
@@ -278,16 +284,18 @@ func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter,
 		}
 
 		body, err = json.Marshal(shorts)
-		if err == nil {
-			// Prepare response
-			w.Header().Add("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusCreated)
-			_, err = w.Write(body)
-			if err == nil {
-				return
-			}
+		if err != nil {
+			http.Error(w, "DB error", http.StatusBadRequest)
 		}
-		http.Error(w, "DB error", http.StatusBadRequest)
+
+		// Prepare response
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusCreated)
+		_, err = w.Write(body)
+		if err != nil {
+			panic("body write error")
+		}
+
 	}
 }
 
