@@ -23,8 +23,9 @@ func (links Links) MarshalJSON() ([]byte, error) {
 }
 
 type Link struct {
-	ID  string `json:"correlation_id"`
-	URL string `json:"original_url"`
+	ID      string `json:"correlation_id"`
+	URL     string `json:"original_url"`
+	Deleted bool   `json:"-"`
 }
 
 type ShortLink struct {

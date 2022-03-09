@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 )
 
@@ -17,7 +18,7 @@ type encData struct {
 var encInstance *encData
 
 // Returns an int >= min, < max
-func randomInt(min, max int) int {
+func RandomInt(min, max int) int {
 	return min + rand.Intn(max-min)
 }
 
@@ -25,7 +26,7 @@ func randomInt(min, max int) int {
 func RandomString(len int) string {
 	bytes := make([]byte, len)
 	for i := 0; i < len; i++ {
-		bytes[i] = byte(randomInt(65, 90))
+		bytes[i] = byte(RandomInt(65, 90))
 	}
 	return string(bytes)
 }
@@ -33,6 +34,8 @@ func RandomString(len int) string {
 // Decode userId  from encrypted cookie
 func Decode(shaUserID string, userID *string) error {
 	// Init encrypt data
+	str := ""
+	fmt.Println(Decode("", &str))
 	if err := keyInit(); err != nil {
 		return err
 	}

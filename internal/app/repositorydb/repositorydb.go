@@ -3,7 +3,6 @@ package repositorydb
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	helpers "ilyakasharokov/internal/app/encryptor"
 	"ilyakasharokov/internal/app/model"
@@ -13,15 +12,13 @@ type RepositoryDB struct {
 	db *sql.DB
 }
 
-var ErrAlreadyExist = errors.New("already exist")
-
 func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, ctx context.Context) error {
-	sql := `
+	query := `
 	insert into urls (id, user_id, origin_url, short_url) 
 	values (default, $1, $2, $3)
 	ON CONFLICT (short_url) DO NOTHING
 	`
-	_, err := repo.db.ExecContext(ctx, sql, user, link.URL, key)
+	_, err := repo.db.ExecContext(ctx, query, user, link.URL, key)
 	if err != nil {
 		return err
 	}
@@ -30,24 +27,54 @@ func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, 
 }
 
 func (repo *RepositoryDB) GetItem(user model.User, key string, ctx context.Context) (model.Link, error) {
-	sql := `
-		select origin_url from urls where user_id=$1 and short_url=$2
+	query := `
+		select origin_url, deleted from urls where user_id=$1 and short_url=$2
 	`
-	result := repo.db.QueryRowContext(ctx, sql, user, key)
+	result := repo.db.QueryRowContext(ctx, query, user, key)
 	link := model.Link{}
-	err := result.Scan(&link.URL)
+	err := result.Scan(&link.URL, &link.Deleted)
 	if err != nil {
 		return model.Link{}, err
 	}
 	return link, nil
 }
 
+func (repo *RepositoryDB) RemoveItem(user model.User, id int, ctx context.Context) error {
+	query := `
+		update urls set deleted = true where user_id=$1 and id=$2
+	`
+	_, err := repo.db.ExecContext(ctx, query, user, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repo *RepositoryDB) RemoveItems(user model.User, ids []int) error {
+	query := `
+		update urls set deleted = true where user_id=$1 and id=$2
+	`
+	tx, err := repo.db.Begin()
+	for _, id := range ids {
+		_, err = tx.Exec(query, string(user), id)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}
+
 func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model.Links, error) {
-	sql := `
+	query := `
 		select origin_url, short_url from urls where user_id=$1
 	`
 	links := model.Links{}
-	result, err := repo.db.QueryContext(ctx, sql, user)
+	result, err := repo.db.QueryContext(ctx, query, user)
 	if err != nil {
 		return model.Links{}, err
 	}
@@ -66,10 +93,10 @@ func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model
 
 func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	var exist bool
-	sql := `
+	query := `
 		select 1 from urls where user_id=$1 and short_url=$2
 	`
-	result, err := repo.db.Query(sql, user, key)
+	result, err := repo.db.Query(query, user, key)
 	if err != nil {
 		return false
 	}
@@ -83,10 +110,10 @@ func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 
 func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string, ctx context.Context) model.ShortLink {
 	var link = model.ShortLink{}
-	sql := `
+	query := `
 		select short_url from urls where user_id=$1 and origin_url=$2
 	`
-	result := repo.db.QueryRowContext(ctx, sql, user, key)
+	result := repo.db.QueryRowContext(ctx, query, user, key)
 	err := result.Scan(&link.Short)
 	if err != nil {
 		return link

@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
-	_ "github.com/lib/pq"
 	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/apiserver"
-	"ilyakasharokov/internal/app/dbservice"
 	"ilyakasharokov/internal/app/repositorydb"
+	"ilyakasharokov/internal/app/worker"
 	"log"
+
+	_ "github.com/lib/pq"
+
 	"os"
 	"os/signal"
 	"time"
@@ -22,9 +24,10 @@ func main() {
 		return
 	}
 	defer db.Close()
-	dbservice.SetupDatabase(db, ctx)
 	repo := repositorydb.New(db)
-	s := apiserver.New(repo, cfg.ServerAddress, cfg.BaseURL, db)
+	wp := worker.New(5, 5)
+	go wp.Run(ctx)
+	s := apiserver.New(repo, cfg.ServerAddress, cfg.BaseURL, db, wp)
 	go func() {
 		log.Println(s.Start())
 		cancel()
