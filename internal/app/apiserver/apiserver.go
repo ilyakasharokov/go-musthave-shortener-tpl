@@ -4,7 +4,6 @@ package apiserver
 import (
 	"context"
 	"database/sql"
-	"github.com/rs/zerolog/log"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
@@ -12,6 +11,8 @@ import (
 	"net/http"
 	"net/http/pprof"
 	_ "net/http/pprof"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/go-chi/chi/v5"
 )

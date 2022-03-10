@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
 	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/mocks"
 	"ilyakasharokov/internal/app/model"
@@ -14,6 +12,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
 )
 
 const testURL = "https://yandex.ru"
