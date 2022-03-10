@@ -60,6 +60,10 @@ func (repo *RepositoryDB) RemoveItems(user model.User, ids []int) error {
 		update urls set deleted = true where user_id=$1 and id=$2
 	`
 	tx, err := repo.db.Begin()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
 	for _, id := range ids {
 		_, err = tx.Exec(query, string(user), id)
 		if err != nil {

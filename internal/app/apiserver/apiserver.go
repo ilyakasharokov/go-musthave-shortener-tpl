@@ -10,7 +10,6 @@ import (
 	"ilyakasharokov/internal/app/worker"
 	"net/http"
 	"net/http/pprof"
-	_ "net/http/pprof"
 
 	"github.com/rs/zerolog/log"
 
