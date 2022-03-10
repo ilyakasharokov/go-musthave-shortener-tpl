@@ -4,29 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"ilyakasharokov/internal/app/model"
-	"reflect"
 	"testing"
 )
-
-func TestNew(t *testing.T) {
-	type args struct {
-		db_ *sql.DB
-	}
-	tests := []struct {
-		name string
-		args args
-		want *RepositoryDB
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.args.db_); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("New() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestRepositoryDB_AddItem(t *testing.T) {
 	type fields struct {
