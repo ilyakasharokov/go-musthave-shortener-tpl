@@ -1,3 +1,4 @@
+// Логгер
 package logger
 
 import "fmt"

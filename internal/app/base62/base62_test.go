@@ -1,6 +1,7 @@
 package base62
 
 import (
+	"fmt"
 	helpers "ilyakasharokov/internal/app/encryptor"
 	"testing"
 )
@@ -29,6 +30,15 @@ func TestDecode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ExampleDecode() {
+	url := helpers.RandomString(10)
+	decoded, err := Decode(url)
+	fmt.Println(decoded, err)
+
+	// Output
+	// "decodedstring" nil
 }
 
 func BenchmarkDecode(b *testing.B) {

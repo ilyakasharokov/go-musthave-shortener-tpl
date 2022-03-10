@@ -1,10 +1,10 @@
+// Кодер/декодер
 package helpers
 
 import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
-	"fmt"
 	"math/rand"
 )
 
@@ -34,8 +34,6 @@ func RandomString(len int) string {
 // Decode userId  from encrypted cookie
 func Decode(shaUserID string, userID *string) error {
 	// Init encrypt data
-	str := ""
-	fmt.Println(Decode("", &str))
 	if err := keyInit(); err != nil {
 		return err
 	}

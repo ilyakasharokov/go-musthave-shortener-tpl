@@ -1,8 +1,10 @@
+// HTTP сервер
 package apiserver
 
 import (
 	"context"
 	"database/sql"
+	"github.com/rs/zerolog/log"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
@@ -53,6 +55,7 @@ func (s *APIServer) Cancel(ctx context.Context) error {
 }
 
 func (s *APIServer) Start() error {
+	log.Info().Msg("Start http server on " + s.srv.Addr)
 	err := s.srv.ListenAndServe()
 	return err
 }

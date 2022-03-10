@@ -1,3 +1,4 @@
+// Модуль работы с базой данных postgres.
 package repositorydb
 
 import (
@@ -12,6 +13,7 @@ type RepositoryDB struct {
 	db *sql.DB
 }
 
+// Добавление URL в базу.
 func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, ctx context.Context) error {
 	query := `
 	insert into urls (id, user_id, origin_url, short_url) 
@@ -26,6 +28,7 @@ func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, 
 	return nil
 }
 
+// Получение URL по ключу.
 func (repo *RepositoryDB) GetItem(user model.User, key string, ctx context.Context) (model.Link, error) {
 	query := `
 		select origin_url, deleted from urls where user_id=$1 and short_url=$2
@@ -39,6 +42,7 @@ func (repo *RepositoryDB) GetItem(user model.User, key string, ctx context.Conte
 	return link, nil
 }
 
+// Удаление множества URL по id.
 func (repo *RepositoryDB) RemoveItem(user model.User, id int, ctx context.Context) error {
 	query := `
 		update urls set deleted = true where user_id=$1 and id=$2
@@ -50,6 +54,7 @@ func (repo *RepositoryDB) RemoveItem(user model.User, id int, ctx context.Contex
 	return nil
 }
 
+// Удаление множества URL по id.
 func (repo *RepositoryDB) RemoveItems(user model.User, ids []int) error {
 	query := `
 		update urls set deleted = true where user_id=$1 and id=$2
@@ -69,6 +74,7 @@ func (repo *RepositoryDB) RemoveItems(user model.User, ids []int) error {
 	return nil
 }
 
+// Получение всех URL пользователя.
 func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model.Links, error) {
 	query := `
 		select origin_url, short_url from urls where user_id=$1
@@ -91,6 +97,7 @@ func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model
 	return links, nil
 }
 
+// Проверка существования пользовательского URL в базе.
 func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	var exist bool
 	query := `
@@ -108,6 +115,7 @@ func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	return exist
 }
 
+// Проверка существования оригинального URL в базе.
 func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string, ctx context.Context) model.ShortLink {
 	var link = model.ShortLink{}
 	query := `
@@ -126,6 +134,7 @@ func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string, ctx cont
 	return link
 }
 
+// Сохранение множества URL.
 func (repo *RepositoryDB) BunchSave(ctx context.Context, user model.User, links []model.Link) ([]model.ShortLink, error) {
 	// Generate shorts
 	type temp struct {

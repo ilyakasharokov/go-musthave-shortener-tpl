@@ -1,3 +1,4 @@
+// GZIP middleware для сжатия данных сервера.
 package middlewares
 
 import (
@@ -12,10 +13,10 @@ type gzipWriter struct {
 	Writer io.Writer
 }
 
-/*func (w gzipWriter) Write(b []byte) (int, error) {
+func (w gzipWriter) Write(b []byte) (int, error) {
 	// Writer будет отвечать за gzip-сжатие, поэтому пишем в него
 	return w.Writer.Write(b)
-}*/
+}
 
 func GzipHandle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

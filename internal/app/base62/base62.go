@@ -1,3 +1,4 @@
+// Base62 декодер
 package base62
 
 import (

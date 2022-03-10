@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/mocks"
@@ -80,6 +81,12 @@ func TestCreateShort(t *testing.T) {
 			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
+}
+
+func ExampleCreateShort() {
+	repo := new(mocks.RepoDBModel)
+	r := chi.NewRouter()
+	r.Post("/", CreateShort(repo, "http://example.com"))
 }
 
 func TestGetShort(t *testing.T) {
@@ -231,6 +238,28 @@ func TestBunchSaveJSON(t *testing.T) {
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 		})
 	}
+}
+
+func ExampleBunchSaveJSON() {
+	repo := new(mocks.RepoDBModel)
+	r := chi.NewRouter()
+	r.Post("/api/shorten/batch", BunchSaveJSON(repo, "http://example.com"))
+
+	/*
+		curl --location --request POST 'http://localhost:8080/api/shorten/batch' \
+		--header 'Content-Type: application/json' \
+		--data-raw '[
+			{
+				"correlation_id":"1",
+				"original_url":"http://yandex.ru"
+			},
+			{
+				"correlation_id":"2",
+				"original_url":"http://google.com"
+			}
+		]'
+
+	*/
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
