@@ -3,9 +3,10 @@ package middlewares
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"ilyakasharokov/internal/app/encryptor"
+	helpers "ilyakasharokov/internal/app/encryptor"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 // CookieUserIDName define cookie name for uuid
