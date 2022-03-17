@@ -75,10 +75,10 @@ func TestCreateShort(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
-			//content-type
+			// content-type
 			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
@@ -130,7 +130,7 @@ func TestGetShort(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 		})
 	}
@@ -190,10 +190,10 @@ func TestAPICreateShort(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
-			//content-type
+			// content-type
 			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
@@ -235,7 +235,7 @@ func TestBunchSaveJSON(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 		})
 	}
@@ -246,21 +246,6 @@ func ExampleBunchSaveJSON() {
 	r := chi.NewRouter()
 	r.Post("/api/shorten/batch", BunchSaveJSON(repo, "http://example.com"))
 
-	/*
-		curl --location --request POST 'http://localhost:8080/api/shorten/batch' \
-		--header 'Content-Type: application/json' \
-		--data-raw '[
-			{
-				"correlation_id":"1",
-				"original_url":"http://yandex.ru"
-			},
-			{
-				"correlation_id":"2",
-				"original_url":"http://google.com"
-			}
-		]'
-
-	*/
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

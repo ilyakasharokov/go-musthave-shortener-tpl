@@ -40,7 +40,7 @@ type RepoDBModel interface {
 	RemoveItems(model.User, []int) error
 }
 
-// Запрос на создание URL из тела запроса.
+// CreateShort cоздает URL из тела запроса. В качестве параметра принимает репозиторий и адрес для шорта.
 func CreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -105,7 +105,7 @@ func CreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r
 	}
 }
 
-// Запрос на создание URL из json.
+// APICreateShort запрашивает создание URL из json. В качестве параметра принимает репозиторий и адрес для шорта.
 func APICreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -190,8 +190,8 @@ func APICreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter
 	}
 }
 
-// Получение пользовательского URL по коду.
-func GetShort(repo RepoDBModel) func(w http.ResponseWriter, r *http.Request) {
+// GetShort получает пользовательский URL по коду. В качестве параметра принимает репозиторий.
+func GetShort(repo RepoDBModel) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathSplit := strings.Split(r.URL.Path, "/")
 
@@ -223,8 +223,8 @@ func GetShort(repo RepoDBModel) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Получение списка пользовательских URL.
-func GetUserShorts(repo RepoDBModel) func(w http.ResponseWriter, r *http.Request) {
+// GetUserShorts получение списка пользовательских URL. В качестве параметра принимает репозиторий.
+func GetUserShorts(repo RepoDBModel) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
@@ -268,8 +268,8 @@ func bodyFromJSON(w *http.ResponseWriter, r *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-// BunchSaveJSON save data and return from mass
-func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+// BunchSaveJSON загружает набор урлов в репозиторий. В качестве параметра принимает репозиторий и адрес для шорта.
+func BunchSaveJSON(repo RepoDBModel, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := bodyFromJSON(&w, r)
 		if err != nil {
@@ -320,8 +320,8 @@ func BunchSaveJSON(repo RepoDBModel, baseURL string) func(w http.ResponseWriter,
 	}
 }
 
-// Пинг базы данных.
-func Ping(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
+// Ping пингует базу данных. В качестве параметра принимает базу данных.
+func Ping(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := db.PingContext(r.Context())
 		if err != nil {
@@ -333,7 +333,7 @@ func Ping(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Запрос на удаление множества URL.
+// Delete принимает множество URL в очередь на удаление.
 func Delete(repo RepoDBModel, workerPool *worker.WorkerPool) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()

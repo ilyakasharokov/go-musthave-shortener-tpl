@@ -4,14 +4,13 @@ package apiserver
 import (
 	"context"
 	"database/sql"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog/log"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
 	"ilyakasharokov/internal/app/worker"
 	"net/http"
-	"net/http/pprof"
-
-	"github.com/rs/zerolog/log"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -34,11 +33,7 @@ func New(repo *repositorydb.RepositoryDB, serverAddress string, baseURL string, 
 	r.Get("/ping", handlers.Ping(database))
 	r.Delete("/api/user/urls", handlers.Delete(repo, wp))
 
-	r.HandleFunc("/debug/pprof/", pprof.Index)
-	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	r.Mount("/debug/", middleware.Profiler())
 
 	srv := &http.Server{
 		Addr:    serverAddress,

@@ -179,9 +179,9 @@ func (repo *RepositoryDB) BunchSave(ctx context.Context, user model.User, links 
 	}
 	// Close statement
 	defer func(stmt *sql.Stmt) {
-		err := stmt.Close()
-		if err != nil {
-			fmt.Println(err)
+		errr := stmt.Close()
+		if errr != nil {
+			fmt.Println(errr)
 		}
 	}(stmt)
 
