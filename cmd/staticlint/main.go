@@ -5,11 +5,12 @@ package main
 
 import (
 	"encoding/json"
-	gocr "github.com/go-critic/go-critic/checkers/analyzer"
-	"github.com/gostaticanalysis/nilerr"
 	"ilyakasharokov/pkg/myanalyzer"
 	"os"
 	"path/filepath"
+
+	gocr "github.com/go-critic/go-critic/checkers/analyzer"
+	"github.com/gostaticanalysis/nilerr"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"

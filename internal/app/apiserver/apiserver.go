@@ -4,13 +4,14 @@ package apiserver
 import (
 	"context"
 	"database/sql"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog/log"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
 	"ilyakasharokov/internal/app/worker"
 	"net/http"
+
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog/log"
 
 	"github.com/go-chi/chi/v5"
 )
