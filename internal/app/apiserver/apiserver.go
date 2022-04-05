@@ -4,6 +4,7 @@ package apiserver
 import (
 	"context"
 	"database/sql"
+	"ilyakasharokov/internal/app/certificate"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
@@ -50,8 +51,25 @@ func (s *APIServer) Cancel(ctx context.Context) error {
 	return s.srv.Shutdown(ctx)
 }
 
-func (s *APIServer) Start() error {
-	log.Info().Msg("Start http server on " + s.srv.Addr)
-	err := s.srv.ListenAndServe()
-	return err
+func (s *APIServer) Start(https bool) error {
+	if https {
+		log.Info().Msg("Start https server on " + s.srv.Addr)
+		err := certificate.Create()
+		if err != nil {
+			return err
+		}
+		return s.srv.ListenAndServeTLS("server.crt", "server.key")
+	}else{
+		log.Info().Msg("Start http server on " + s.srv.Addr)
+		return s.srv.ListenAndServe()
+	}
+}
+
+func (s *APIServer) StartTLS() error {
+	log.Info().Msg("Start https server on " + s.srv.Addr)
+	err := certificate.Create()
+	if err != nil {
+		return err
+	}
+	return s.srv.ListenAndServeTLS("server.crt", "server.key")
 }

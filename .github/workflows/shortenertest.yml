@@ -10,6 +10,7 @@ on:
       - homework-3
       - sprint7
       - sprint8
+      - sprint9
 jobs:
 
   shortenertest:
