@@ -38,14 +38,14 @@ func New() Config {
 		cEnv.Config = *fcfg
 	}
 	if cEnv.Config != "" {
-		c = getConfigFromFIle(cEnv.Config)
+		c, _ = getConfigFromFIle(cEnv.Config)
 	}
 
 	c.EnableHTTPS = cEnv.EnableHTTPS
 	if cEnv.Database != "" {
 		c.Database = cEnv.Database
 	}
-	if cEnv.ServerAddress != "localhost:8080" {
+	if c.ServerAddress == "" || cEnv.ServerAddress != "localhost:8080" {
 		c.ServerAddress = cEnv.ServerAddress
 	}
 	if cEnv.BaseURL != "" {

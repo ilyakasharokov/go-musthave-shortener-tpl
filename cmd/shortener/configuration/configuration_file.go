@@ -3,7 +3,6 @@ package configuration
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"os"
 )
 
@@ -15,19 +14,19 @@ type ConfigFile struct {
 	EnableHTTPS     bool   `json:"enable_https"`
 }
 
-func getConfigFromFIle(fileName string) Config {
+func getConfigFromFIle(fileName string) (Config, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
-		log.Fatalln(err)
+		return Config{}, err
 	}
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		log.Fatal()
+		return Config{}, err
 	}
 	cfg := ConfigFile{}
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
-		log.Fatal(err)
+		return Config{}, err
 	}
 
 	return Config{
@@ -36,5 +35,5 @@ func getConfigFromFIle(fileName string) Config {
 		FileStoragePath:      cfg.FileStoragePath,
 		EnableHTTPS:   cfg.EnableHTTPS,
 		Database: cfg.DatabaseDSN,
-	}
+	}, nil
 }
