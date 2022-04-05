@@ -73,11 +73,8 @@ func New() Config {
 	if *db != "" {
 		c.Database = *db
 	}
-	if *tls != false {
+	if tls != nil {
 		c.EnableHTTPS = *tls
-	}
-	if *fcfg != "" {
-
 	}
 	return c
 }
