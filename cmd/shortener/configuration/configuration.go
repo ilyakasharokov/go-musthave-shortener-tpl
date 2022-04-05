@@ -15,7 +15,7 @@ var paramNames = map[string]string{
 }
 
 type Config struct {
-	ServerAddress   string `env:"SERVER_ADDRESS"`
+	ServerAddress   string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:""`
 	Database        string `env:"DATABASE_DSN"`
@@ -45,7 +45,7 @@ func New() Config {
 	if cEnv.Database != "" {
 		c.Database = cEnv.Database
 	}
-	if cEnv.ServerAddress != "" {
+	if cEnv.ServerAddress != "localhost:8080" {
 		c.ServerAddress = cEnv.ServerAddress
 	}
 	if cEnv.BaseURL != "" {
