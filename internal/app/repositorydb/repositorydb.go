@@ -1,9 +1,9 @@
+// Модуль работы с базой данных postgres.
 package repositorydb
 
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	helpers "ilyakasharokov/internal/app/encryptor"
 	"ilyakasharokov/internal/app/model"
@@ -13,15 +13,14 @@ type RepositoryDB struct {
 	db *sql.DB
 }
 
-var ErrAlreadyExist = errors.New("already exist")
-
+// Добавление URL в базу.
 func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, ctx context.Context) error {
-	sql := `
+	query := `
 	insert into urls (id, user_id, origin_url, short_url) 
 	values (default, $1, $2, $3)
 	ON CONFLICT (short_url) DO NOTHING
 	`
-	_, err := repo.db.ExecContext(ctx, sql, user, link.URL, key)
+	_, err := repo.db.ExecContext(ctx, query, user, link.URL, key)
 	if err != nil {
 		return err
 	}
@@ -29,25 +28,63 @@ func (repo *RepositoryDB) AddItem(user model.User, key string, link model.Link, 
 	return nil
 }
 
+// Получение URL по ключу.
 func (repo *RepositoryDB) GetItem(user model.User, key string, ctx context.Context) (model.Link, error) {
-	sql := `
-		select origin_url from urls where user_id=$1 and short_url=$2
+	query := `
+		select origin_url, deleted from urls where user_id=$1 and short_url=$2
 	`
-	result := repo.db.QueryRowContext(ctx, sql, user, key)
+	result := repo.db.QueryRowContext(ctx, query, user, key)
 	link := model.Link{}
-	err := result.Scan(&link.URL)
+	err := result.Scan(&link.URL, &link.Deleted)
 	if err != nil {
 		return model.Link{}, err
 	}
 	return link, nil
 }
 
+// Удаление множества URL по id.
+func (repo *RepositoryDB) RemoveItem(user model.User, id int, ctx context.Context) error {
+	query := `
+		update urls set deleted = true where user_id=$1 and id=$2
+	`
+	_, err := repo.db.ExecContext(ctx, query, user, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Удаление множества URL по id.
+func (repo *RepositoryDB) RemoveItems(user model.User, ids []int) error {
+	query := `
+		update urls set deleted = true where user_id=$1 and id=$2
+	`
+	tx, err := repo.db.Begin()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	for _, id := range ids {
+		_, err = tx.Exec(query, string(user), id)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}
+
+// Получение всех URL пользователя.
 func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model.Links, error) {
-	sql := `
+	query := `
 		select origin_url, short_url from urls where user_id=$1
 	`
 	links := model.Links{}
-	result, err := repo.db.QueryContext(ctx, sql, user)
+	result, err := repo.db.QueryContext(ctx, query, user)
 	if err != nil {
 		return model.Links{}, err
 	}
@@ -64,12 +101,13 @@ func (repo *RepositoryDB) GetByUser(user model.User, ctx context.Context) (model
 	return links, nil
 }
 
+// Проверка существования пользовательского URL в базе.
 func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	var exist bool
-	sql := `
+	query := `
 		select 1 from urls where user_id=$1 and short_url=$2
 	`
-	result, err := repo.db.Query(sql, user, key)
+	result, err := repo.db.Query(query, user, key)
 	if err != nil {
 		return false
 	}
@@ -81,12 +119,13 @@ func (repo *RepositoryDB) CheckExist(user model.User, key string) bool {
 	return exist
 }
 
+// Проверка существования оригинального URL в базе.
 func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string, ctx context.Context) model.ShortLink {
 	var link = model.ShortLink{}
-	sql := `
+	query := `
 		select short_url from urls where user_id=$1 and origin_url=$2
 	`
-	result := repo.db.QueryRowContext(ctx, sql, user, key)
+	result := repo.db.QueryRowContext(ctx, query, user, key)
 	err := result.Scan(&link.Short)
 	if err != nil {
 		return link
@@ -99,6 +138,7 @@ func (repo *RepositoryDB) CheckExistOrigin(user model.User, key string, ctx cont
 	return link
 }
 
+// Сохранение множества URL.
 func (repo *RepositoryDB) BunchSave(ctx context.Context, user model.User, links []model.Link) ([]model.ShortLink, error) {
 	// Generate shorts
 	type temp struct {
@@ -139,9 +179,9 @@ func (repo *RepositoryDB) BunchSave(ctx context.Context, user model.User, links 
 	}
 	// Close statement
 	defer func(stmt *sql.Stmt) {
-		err := stmt.Close()
-		if err != nil {
-			fmt.Println(err)
+		errr := stmt.Close()
+		if errr != nil {
+			fmt.Println(errr)
 		}
 	}(stmt)
 

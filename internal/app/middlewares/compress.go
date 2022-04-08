@@ -1,3 +1,4 @@
+// GZIP middleware для сжатия данных сервера.
 package middlewares
 
 import (

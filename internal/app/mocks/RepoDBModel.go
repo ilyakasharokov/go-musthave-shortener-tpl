@@ -109,3 +109,17 @@ func (_m *RepoDBModel) GetItem(_a0 model.User, _a1 string, _a2 context.Context) 
 
 	return r0, r1
 }
+
+// RemoveItems provides a mock function with given fields: _a0, _a1
+func (_m *RepoDBModel) RemoveItems(_a0 model.User, _a1 []int) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(model.User, []int) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

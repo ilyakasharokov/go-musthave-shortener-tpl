@@ -1,16 +1,20 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"ilyakasharokov/cmd/shortener/configuration"
 	"ilyakasharokov/internal/app/mocks"
 	"ilyakasharokov/internal/app/model"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
 )
 
 const testURL = "https://yandex.ru"
@@ -71,13 +75,19 @@ func TestCreateShort(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
-			//content-type
+			// content-type
 			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
+}
+
+func ExampleCreateShort() {
+	repo := new(mocks.RepoDBModel)
+	r := chi.NewRouter()
+	r.Post("/", CreateShort(repo, "http://example.com"))
 }
 
 func TestGetShort(t *testing.T) {
@@ -120,7 +130,7 @@ func TestGetShort(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 		})
 	}
@@ -180,11 +190,80 @@ func TestAPICreateShort(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
-			//status code
+			// status code
 			assert.EqualValues(t, tt.want.code, res.StatusCode)
 
-			//content-type
+			// content-type
 			assert.EqualValues(t, tt.want.contentType, res.Header.Get("Content-Type"))
 		})
+	}
+}
+
+func TestBunchSaveJSON(t *testing.T) {
+	type want struct {
+		code int
+	}
+	tests := []struct {
+		name          string
+		payload       string
+		addItemResult error
+		want          want
+	}{
+		{
+			name: "#1 post request test good payload",
+			payload: `[
+				{
+					"correlation_id":"1",
+					"original_url":"` + testURL + `"
+				}]`,
+			addItemResult: nil,
+			want: want{
+				code: http.StatusCreated,
+			},
+		},
+	}
+
+	repo := new(mocks.RepoDBModel)
+	repo.On("CheckExist", model.User(testUser), testCode).Return(false)
+	repo.On("BunchSave", context.Background(), model.User(testUser), []model.Link{{ID: "1", URL: testURL}}).Return([]model.ShortLink{{ID: "1", Short: testCode}}, nil)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.payload))
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(BunchSaveJSON(repo, cfg.BaseURL))
+			h.ServeHTTP(w, request)
+			res := w.Result()
+			defer res.Body.Close()
+			// status code
+			assert.EqualValues(t, tt.want.code, res.StatusCode)
+		})
+	}
+}
+
+func ExampleBunchSaveJSON() {
+	repo := new(mocks.RepoDBModel)
+	r := chi.NewRouter()
+	r.Post("/api/shorten/batch", BunchSaveJSON(repo, "http://example.com"))
+
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
+func BenchmarkCreateShort(b *testing.B) {
+	repo := new(mocks.RepoDBModel)
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		url := RandStringBytes(10)
+		b.StartTimer()
+		CreateShort(repo, url)
 	}
 }

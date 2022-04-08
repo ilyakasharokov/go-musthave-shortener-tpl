@@ -2,14 +2,23 @@ package model
 
 import "encoding/json"
 
-type Links map[string]Link
-
-type ShortLinks map[string]ShortLink
-
-type UserLink struct {
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-}
+type (
+	Link struct {
+		ID      string `json:"correlation_id"`
+		URL     string `json:"original_url"`
+		Deleted bool   `json:"-"`
+	}
+	ShortLink struct {
+		ID    string `json:"correlation_id"`
+		Short string `json:"original_url"`
+	}
+	Links      map[string]Link
+	ShortLinks map[string]ShortLink
+	UserLink   struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+)
 
 func (links Links) MarshalJSON() ([]byte, error) {
 	var linksPrepared []UserLink
@@ -20,14 +29,4 @@ func (links Links) MarshalJSON() ([]byte, error) {
 		})
 	}
 	return json.Marshal(linksPrepared)
-}
-
-type Link struct {
-	ID  string `json:"correlation_id"`
-	URL string `json:"original_url"`
-}
-
-type ShortLink struct {
-	ID    string `json:"correlation_id"`
-	Short string `json:"original_url"`
 }
