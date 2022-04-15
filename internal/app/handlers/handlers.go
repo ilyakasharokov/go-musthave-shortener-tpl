@@ -13,6 +13,7 @@ import (
 	"ilyakasharokov/internal/app/worker"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	urltool "net/url"
 	"strings"
@@ -38,6 +39,7 @@ type RepoDBModel interface {
 	GetByUser(model.User, context.Context) (model.Links, error)
 	BunchSave(context.Context, model.User, []model.Link) ([]model.ShortLink, error)
 	RemoveItems(model.User, []int) error
+	CountURLsAndUsers(ctx context.Context)(int, int, error)
 }
 
 // CreateShort cоздает URL из тела запроса. В качестве параметра принимает репозиторий и адрес для шорта.
@@ -369,5 +371,37 @@ func Delete(repo RepoDBModel, workerPool *worker.WorkerPool) func(w http.Respons
 		workerPool.Push(bf)
 		w.WriteHeader(http.StatusAccepted)
 
+	}
+}
+
+// Stats возвращает кол-во урлов и юзеров в базе. Только для доверенной подсети trustedSubnet
+func Stats(repo RepoDBModel, trustedSubnet *net.IPNet) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if trustedSubnet == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		realIp := r.Header.Get("X-Real-IP")
+		reqIp := net.ParseIP(realIp)
+		ok := trustedSubnet.Contains(reqIp)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		users, urls, err := repo.CountURLsAndUsers(r.Context())
+		if err != nil {
+			http.Error(w, "sql error", http.StatusInternalServerError)
+			return
+		}
+		response := struct {
+			Urls int `json:"urls"`
+			Users int `json:"users"`
+		}{
+			Urls: urls,
+			Users: users,
+		}
+		jsn, _ := json.Marshal(response)
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsn)
 	}
 }

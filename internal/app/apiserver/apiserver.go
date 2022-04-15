@@ -9,6 +9,7 @@ import (
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
 	"ilyakasharokov/internal/app/worker"
+	"net"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -23,7 +24,7 @@ type APIServer struct {
 	db   *sql.DB
 }
 
-func New(repo *repositorydb.RepositoryDB, serverAddress string, baseURL string, database *sql.DB, wp *worker.WorkerPool) *APIServer {
+func New(repo *repositorydb.RepositoryDB, serverAddress string, baseURL string, trustedSubnet *net.IPNet, database *sql.DB, wp *worker.WorkerPool) *APIServer {
 	r := chi.NewRouter()
 	r.Use(middlewares.GzipHandle)
 	r.Use(middlewares.CookieMiddleware)
@@ -34,6 +35,7 @@ func New(repo *repositorydb.RepositoryDB, serverAddress string, baseURL string, 
 	r.Get("/user/urls", handlers.GetUserShorts(repo))
 	r.Get("/ping", handlers.Ping(database))
 	r.Delete("/api/user/urls", handlers.Delete(repo, wp))
+	r.Get("/api/internal/stats", handlers.Stats(repo, trustedSubnet))
 
 	r.Mount("/debug/", middleware.Profiler())
 

@@ -8,6 +8,7 @@ import (
 	"ilyakasharokov/internal/app/repositorydb"
 	"ilyakasharokov/internal/app/worker"
 	"log"
+	"net"
 	"syscall"
 
 	_ "github.com/lib/pq"
@@ -38,7 +39,15 @@ func main() {
 	repo := repositorydb.New(db)
 	wp := worker.New(5, 5)
 	go wp.Run(ctx)
-	s := apiserver.New(repo, cfg.ServerAddress, cfg.BaseURL, db, wp)
+	var trustedSubnet *net.IPNet = nil
+	if cfg.TrustedSubnet != "" {
+		_, trustedSubnet, err = net.ParseCIDR(cfg.TrustedSubnet)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
+	s := apiserver.New(repo, cfg.ServerAddress, cfg.BaseURL, trustedSubnet, db, wp)
 	go func() {
 		log.Println(s.Start(cfg.EnableHTTPS))
 		cancel()

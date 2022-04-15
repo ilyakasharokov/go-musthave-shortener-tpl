@@ -3,6 +3,7 @@ package configuration
 
 import (
 	"flag"
+
 	"github.com/caarlos0/env/v6"
 )
 
@@ -11,7 +12,8 @@ var paramNames = map[string]string{
 	"SERVER_ADDRESS":    "a",
 	"FILE_STORAGE_PATH": "f",
 	"ENABLE_HTTPS":      "s",
-	"CONFIG":  "c",
+	"CONFIG":            "c",
+	"TRUSTED_SUBNET":    "t",
 }
 
 type Config struct {
@@ -19,10 +21,10 @@ type Config struct {
 	BaseURL         string `env:"BASE_URL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" envDefault:""`
 	Database        string `env:"DATABASE_DSN"`
-	EnableHTTPS    	bool   `env:"ENABLE_HTTPS"`
-	Config 			string `env:"CONFIG"`
+	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
+	Config          string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 }
-
 
 func New() Config {
 	// Parse environment
@@ -54,11 +56,15 @@ func New() Config {
 	if cEnv.FileStoragePath != "" {
 		c.FileStoragePath = cEnv.FileStoragePath
 	}
+	if cEnv.TrustedSubnet != "" {
+		c.TrustedSubnet = cEnv.TrustedSubnet
+	}
 	bu := flag.String(paramNames["BASE_URL"], "", "")
 	sa := flag.String(paramNames["SERVER_ADDRESS"], "", "")
 	fs := flag.String(paramNames["FILE_STORAGE_PATH"], "", "")
 	db := flag.String(paramNames["DATABASE_DSN"], "", "")
 	tls := flag.Bool(paramNames["ENABLE_HTTPS"], false, "")
+	ts := flag.String(paramNames["TRUSTED_SUBNET"], "", "")
 
 	flag.Parse()
 	if *bu != "" {
@@ -75,6 +81,9 @@ func New() Config {
 	}
 	if tls != nil {
 		c.EnableHTTPS = *tls
+	}
+	if *ts != "" {
+		c.TrustedSubnet = *ts
 	}
 	return c
 }

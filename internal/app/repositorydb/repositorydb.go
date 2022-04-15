@@ -206,6 +206,24 @@ func (repo *RepositoryDB) BunchSave(ctx context.Context, user model.User, links 
 	return shorts, nil
 }
 
+// CountURLsAndUsers возвращается кол-во юзеров и урлов
+func (repo *RepositoryDB) CountURLsAndUsers(ctx context.Context) (userCount int, urlCount int, err error) {
+	query := `
+		SELECT COUNT(DISTINCT user_id) as count_user, COUNT(*) from urls
+	`
+	result := repo.db.QueryRowContext(ctx, query)
+	err = result.Scan(&userCount, &urlCount)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	defer func() {
+		_ = result.Err() // or modify return value
+	}()
+
+	return userCount, urlCount, err
+}
+
 func New(db_ *sql.DB) *RepositoryDB {
 	repo := RepositoryDB{
 		db: db_,
