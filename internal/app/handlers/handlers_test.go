@@ -2,16 +2,12 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"ilyakasharokov/cmd/shortener/configuration"
-	"ilyakasharokov/internal/app/controller"
 	"ilyakasharokov/internal/app/mocks"
 	"ilyakasharokov/internal/app/model"
-	"ilyakasharokov/internal/app/worker"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -45,7 +41,7 @@ func TestCreateShort(t *testing.T) {
 			payload: testURL,
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 		},
 		{
@@ -67,10 +63,6 @@ func TestCreateShort(t *testing.T) {
 	}
 
 	repo := new(mocks.RepoDBModel)
-	dbMock := new(sql.DB)
-	wpMock := new(worker.WorkerPool)
-	subnetMock := new(net.IPNet)
-	ctrl := controller.NewController(repo, cfg.BaseURL, dbMock, wpMock, subnetMock)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo.On("CheckExist", model.User(testUser), testCode).Return(false)
@@ -79,7 +71,7 @@ func TestCreateShort(t *testing.T) {
 			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: ""}, request.Context()).Return(nil)
 			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: tt.payload}, request.Context()).Return(nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(CreateShort(ctrl))
+			h := http.HandlerFunc(CreateShort(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -94,12 +86,8 @@ func TestCreateShort(t *testing.T) {
 
 func ExampleCreateShort() {
 	repo := new(mocks.RepoDBModel)
-	dbMock := new(sql.DB)
-	wpMock := new(worker.WorkerPool)
-	subnetMock := new(net.IPNet)
-	ctrl := controller.NewController(repo, cfg.BaseURL, dbMock, wpMock, subnetMock)
 	r := chi.NewRouter()
-	r.Post("/", CreateShort(ctrl))
+	r.Post("/", CreateShort(repo, "http://example.com"))
 }
 
 func TestGetShort(t *testing.T) {
@@ -165,7 +153,7 @@ func TestAPICreateShort(t *testing.T) {
 			addItemResult: nil,
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "text/plain; charset=utf-8",
+				contentType: "",
 			},
 		},
 		{
@@ -189,10 +177,6 @@ func TestAPICreateShort(t *testing.T) {
 	}
 
 	repo := new(mocks.RepoDBModel)
-	dbMock := new(sql.DB)
-	wpMock := new(worker.WorkerPool)
-	subnetMock := new(net.IPNet)
-	ctrl := controller.NewController(repo, cfg.BaseURL, dbMock, wpMock, subnetMock)
 	repo.On("CheckExist", model.User(testUser), testCode).Return(false)
 
 	for _, tt := range tests {
@@ -202,7 +186,7 @@ func TestAPICreateShort(t *testing.T) {
 			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: tt.payload}, request.Context()).Return(tt.addItemResult)
 			repo.On("AddItem", model.User(testUser), testCode, model.Link{URL: ""}, request.Context()).Return(tt.addItemResult)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(CreateShort(ctrl))
+			h := http.HandlerFunc(CreateShort(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -240,10 +224,6 @@ func TestBunchSaveJSON(t *testing.T) {
 	}
 
 	repo := new(mocks.RepoDBModel)
-	dbMock := new(sql.DB)
-	wpMock := new(worker.WorkerPool)
-	subnetMock := new(net.IPNet)
-	ctrl := controller.NewController(repo, cfg.BaseURL, dbMock, wpMock, subnetMock)
 	repo.On("CheckExist", model.User(testUser), testCode).Return(false)
 	repo.On("BunchSave", context.Background(), model.User(testUser), []model.Link{{ID: "1", URL: testURL}}).Return([]model.ShortLink{{ID: "1", Short: testCode}}, nil)
 
@@ -251,7 +231,7 @@ func TestBunchSaveJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.payload))
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(BunchSaveJSON(ctrl))
+			h := http.HandlerFunc(BunchSaveJSON(repo, cfg.BaseURL))
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
@@ -263,12 +243,8 @@ func TestBunchSaveJSON(t *testing.T) {
 
 func ExampleBunchSaveJSON() {
 	repo := new(mocks.RepoDBModel)
-	dbMock := new(sql.DB)
-	wpMock := new(worker.WorkerPool)
-	subnetMock := new(net.IPNet)
-	ctrl := controller.NewController(repo, cfg.BaseURL, dbMock, wpMock, subnetMock)
 	r := chi.NewRouter()
-	r.Post("/api/shorten/batch", BunchSaveJSON(ctrl))
+	r.Post("/api/shorten/batch", BunchSaveJSON(repo, "http://example.com"))
 
 }
 
@@ -284,14 +260,10 @@ func RandStringBytes(n int) string {
 
 func BenchmarkCreateShort(b *testing.B) {
 	repo := new(mocks.RepoDBModel)
-	dbMock := new(sql.DB)
-	wpMock := new(worker.WorkerPool)
-	subnetMock := new(net.IPNet)
-	ctrl := controller.NewController(repo, cfg.BaseURL, dbMock, wpMock, subnetMock)
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		RandStringBytes(10)
+		url := RandStringBytes(10)
 		b.StartTimer()
-		CreateShort(ctrl)
+		CreateShort(repo, url)
 	}
 }
