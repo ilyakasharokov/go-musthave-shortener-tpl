@@ -6,10 +6,10 @@ import (
 	"database/sql"
 	"fmt"
 	"ilyakasharokov/internal/app/controller"
+	"ilyakasharokov/internal/app/grpc/proto"
 	"ilyakasharokov/internal/app/model"
 	"ilyakasharokov/internal/app/repositorydb"
 	"ilyakasharokov/internal/app/worker"
-	proto "ilyakasharokov/pkg/grpc/proto"
 	"net"
 	"net/http"
 	"strconv"
@@ -22,7 +22,7 @@ import (
 
 // ShortenerServer implement main methods for gRPC
 type ShortenerServer struct {
-	proto.UnimplementedShortenerServer
+	shortener.UnimplementedShortenerServer
 	repo    *repositorydb.RepositoryDB
 	db      *sql.DB
 	wp      *worker.WorkerPool
@@ -61,7 +61,7 @@ func (rw *ResponseWriterMap) Write(data []byte) (int, error) {
 // New instance for gRPC server
 func New(repo *repositorydb.RepositoryDB, baseURL string, subnet *net.IPNet, db *sql.DB, wp *worker.WorkerPool, ctrl *controller.Controller) *ShortenerServer {
 	return &ShortenerServer{
-		proto.UnimplementedShortenerServer{},
+		shortener.UnimplementedShortenerServer{},
 		repo,
 		db,
 		wp,
@@ -86,7 +86,7 @@ func getUserID(ctx context.Context) string {
 	return userID
 }
 
-func (s *ShortenerServer) CreateShort(ctx context.Context, req *proto.URLRequest) (rsp *proto.URLResponse, err error) {
+func (s *ShortenerServer) CreateShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
 	err, code, shortURL := s.ctrl.CreateShort(ctx, req.URL, userID)
 	header := metadata.Pairs("user_id", userID)
@@ -94,13 +94,13 @@ func (s *ShortenerServer) CreateShort(ctx context.Context, req *proto.URLRequest
 	if err != nil {
 		return nil, err
 	}
-	rsp = new(proto.URLResponse)
+	rsp = new(shortener.URLResponse)
 	rsp.URL = shortURL
 	rsp.Code = int32(code)
 	return rsp, nil
 }
 
-func (s *ShortenerServer) APICreateShort(ctx context.Context, req *proto.URLRequest) (rsp *proto.URLResponse, err error) {
+func (s *ShortenerServer) APICreateShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
 	err, code, shortURL := s.ctrl.CreateShort(ctx, req.URL, userID)
 	if err != nil {
@@ -111,7 +111,7 @@ func (s *ShortenerServer) APICreateShort(ctx context.Context, req *proto.URLRequ
 	return rsp, nil
 }
 
-func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *proto.BunchSaveRequest) (rsp *proto.BunchSaveResponse, err error) {
+func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *shortener.BunchSaveRequest) (rsp *shortener.BunchSaveResponse, err error) {
 	userID := getUserID(ctx)
 	rLinks := req.GetLinks()
 	links := []model.Link{}
@@ -128,7 +128,7 @@ func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *proto.BunchSav
 	}
 	for _, short := range shorts {
 		id, _ := strconv.Atoi(short.ID)
-		sLink := &proto.BunchLink{
+		sLink := &shortener.BunchLink{
 			URL: short.Short,
 			Id:  int32(id),
 		}
@@ -138,7 +138,7 @@ func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *proto.BunchSav
 	return rsp, nil
 }
 
-func (s *ShortenerServer) GetShort(ctx context.Context, req *proto.URLRequest) (rsp *proto.URLResponse, err error) {
+func (s *ShortenerServer) GetShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
 	entity, err := s.repo.GetItem(model.User(userID), req.URL, ctx)
 	if err != nil {
@@ -156,10 +156,10 @@ func (s *ShortenerServer) GetShort(ctx context.Context, req *proto.URLRequest) (
 	return rsp, nil
 }
 
-func (s *ShortenerServer) GetUserShorts(ctx context.Context, _ *proto.Empty) (rsp *proto.GetUserShortsResponse, err error) {
+func (s *ShortenerServer) GetUserShorts(ctx context.Context, _ *shortener.Empty) (rsp *shortener.GetUserShortsResponse, err error) {
 	userID := getUserID(ctx)
 	links, err := s.repo.GetByUser(model.User(userID), ctx)
-	rsp = new(proto.GetUserShortsResponse)
+	rsp = new(shortener.GetUserShortsResponse)
 	if err != nil {
 		log.Err(err).Str("user", userID).Msg("No links")
 		rsp.Code = http.StatusNoContent
@@ -173,16 +173,16 @@ func (s *ShortenerServer) GetUserShorts(ctx context.Context, _ *proto.Empty) (rs
 	rsp.Code = http.StatusOK
 	for _, link := range links {
 		id, _ := strconv.Atoi(link.ID)
-		rsp.Links = append(rsp.Links, &proto.BunchLink{
+		rsp.Links = append(rsp.Links, &shortener.BunchLink{
 			URL: link.URL,
 			Id:  int32(id),
 		})
 	}
 	return rsp, nil
 }
-func (s *ShortenerServer) Ping(ctx context.Context, _ *proto.Empty) (rsp *proto.CodeResponse, err error) {
+func (s *ShortenerServer) Ping(ctx context.Context, _ *shortener.Empty) (rsp *shortener.CodeResponse, err error) {
 	err = s.db.PingContext(ctx)
-	rsp = new(proto.CodeResponse)
+	rsp = new(shortener.CodeResponse)
 	if err != nil {
 		fmt.Println(err)
 		rsp.Code = http.StatusInternalServerError
@@ -192,13 +192,13 @@ func (s *ShortenerServer) Ping(ctx context.Context, _ *proto.Empty) (rsp *proto.
 	return rsp, nil
 }
 
-func (s *ShortenerServer) Delete(ctx context.Context, req *proto.DeleteRequest) (rsp *proto.CodeResponse, err error) {
+func (s *ShortenerServer) Delete(ctx context.Context, req *shortener.DeleteRequest) (rsp *shortener.CodeResponse, err error) {
 	userID := getUserID(ctx)
 	idsInt := []int{}
 	for _, id := range req.Id {
 		idsInt = append(idsInt, int(id))
 	}
-	rsp = new(proto.CodeResponse)
+	rsp = new(shortener.CodeResponse)
 	err, httpCode := s.ctrl.Delete(idsInt, userID)
 	if err != nil {
 		return nil, err
@@ -207,8 +207,8 @@ func (s *ShortenerServer) Delete(ctx context.Context, req *proto.DeleteRequest) 
 	return rsp, err
 }
 
-func (s *ShortenerServer) Stats(ctx context.Context, _ *proto.Empty) (rsp *proto.StatsResponse, err error) {
-	rsp = new(proto.StatsResponse)
+func (s *ShortenerServer) Stats(ctx context.Context, _ *shortener.Empty) (rsp *shortener.StatsResponse, err error) {
+	rsp = new(shortener.StatsResponse)
 	if s.subnet == nil {
 		rsp.Code = http.StatusForbidden
 		return rsp, nil
