@@ -146,7 +146,6 @@ func (c *Controller) GetShort() {
 func (c *Controller) Delete(ids []int, userID string) (err error, httpCode int) {
 	if len(ids) == 0 {
 		return errors.New("No ids"), http.StatusBadRequest
-		return
 	}
 	bf := func(_ context.Context) error {
 		c.repo.RemoveItems(model.User(userID), ids)
