@@ -96,6 +96,7 @@ func (s *ShortenerServer) CreateShort(ctx context.Context, req *shortener.URLReq
 func (s *ShortenerServer) APICreateShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
 	code, shortURL, err := s.ctrl.CreateShort(ctx, req.URL, userID)
+	rsp = new(shortener.URLResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +109,7 @@ func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *shortener.Bunc
 	userID := getUserID(ctx)
 	rLinks := req.GetLinks()
 	links := []model.Link{}
+	rsp = new(shortener.BunchSaveResponse)
 	for _, rLink := range rLinks {
 		link := model.Link{
 			URL: rLink.URL,
@@ -134,6 +136,7 @@ func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *shortener.Bunc
 func (s *ShortenerServer) GetShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
 	entity, err := s.repo.GetItem(model.User(userID), req.URL, ctx)
+	rsp = new(shortener.URLResponse)
 	if err != nil {
 		log.Err(err).Msg("Not found")
 		rsp.Code = http.StatusNotFound
@@ -154,13 +157,13 @@ func (s *ShortenerServer) GetUserShorts(ctx context.Context, _ *shortener.Empty)
 	links, err := s.repo.GetByUser(model.User(userID), ctx)
 	rsp = new(shortener.GetUserShortsResponse)
 	if err != nil {
-		log.Err(err).Str("user", userID).Msg("No links")
-		rsp.Code = http.StatusNoContent
+		log.Err(err).Msg("marshal links error")
+		rsp.Code = http.StatusInternalServerError
 		return rsp, nil
 	}
-	if err != nil {
-		log.Err(err).Msg("Marshal links error")
-		rsp.Code = http.StatusInternalServerError
+	if len(links) == 0 {
+		log.Err(err).Str("user", userID).Msg("no links")
+		rsp.Code = http.StatusNoContent
 		return rsp, nil
 	}
 	rsp.Code = http.StatusOK
@@ -210,7 +213,7 @@ func (s *ShortenerServer) Stats(ctx context.Context, _ *shortener.Empty) (rsp *s
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
 		realIPArr := md.Get("X-Real-IP")
-		if realIPArr != nil && len(realIPArr) > 0 {
+		if len(realIPArr) > 0 {
 			realIP = realIPArr[0]
 		}
 	}

@@ -52,7 +52,7 @@ func NewController(repo RepoDBModel, baseURL string, db *sql.DB, wp *worker.Work
 func (c *Controller) CreateShort(ctx context.Context, url string, userID string) (httpCode int, shortURL string, err error) {
 	_, err = urltool.ParseRequestURI(url)
 	if err != nil {
-		return http.StatusBadRequest, "", errors.New("The url is incorrect")
+		return http.StatusBadRequest, "", errors.New("the url is incorrect")
 	}
 	var code string
 	for {
@@ -67,12 +67,12 @@ func (c *Controller) CreateShort(ctx context.Context, url string, userID string)
 	link, err := c.repo.GetItem(model.User(userID), code, ctx)
 	shortURL = fmt.Sprintf("%s/%s", c.baseURL, code)
 	if err == nil {
-		return http.StatusConflict, shortURL, errors.New("Already exist")
+		return http.StatusConflict, shortURL, errors.New("already exist")
 	}
 	link.URL = url
 	err = c.repo.AddItem(model.User(userID), code, link, ctx)
 	if err != nil {
-		return http.StatusInternalServerError, "", errors.New("Add url error")
+		return http.StatusInternalServerError, "", errors.New("add url error")
 	}
 	return http.StatusCreated, shortURL, nil
 }
@@ -121,7 +121,7 @@ func (c *Controller) APICreateShort(ctx context.Context, data []byte, userID str
 
 	err = c.repo.AddItem(model.User(userID), code, link, ctx)
 	if err != nil {
-		return http.StatusInternalServerError, result, errors.New("Add url error")
+		return http.StatusInternalServerError, result, errors.New("add url error")
 	}
 	return http.StatusCreated, result, nil
 }
@@ -145,7 +145,7 @@ func (c *Controller) GetShort() {
 
 func (c *Controller) Delete(ids []int, userID string) (httpCode int, err error) {
 	if len(ids) == 0 {
-		return http.StatusBadRequest, errors.New("No ids")
+		return http.StatusBadRequest, errors.New("no ids")
 	}
 	bf := func(_ context.Context) error {
 		c.repo.RemoveItems(model.User(userID), ids)
