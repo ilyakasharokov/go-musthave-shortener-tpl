@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option go_package = "github.com/ilyakasharokov/go-musthave-shortener-tpl/shortener";
+
+package shortener;
+
+message URLRequest {
+  string URL = 1; // URL
+}
+
+message URLResponse {
+    int32 code = 1;
+    string URL = 2;
+}
+
+message BunchLink {
+    string URL = 1;
+    int32 id = 2;
+}
+
+message BunchSaveRequest {
+    repeated BunchLink links = 1;
+}
+
+message BunchSaveResponse {
+    repeated BunchLink links = 1;
+    int32 code = 2;
+}
+
+message PingRequest {}
+
+message Empty {}
+
+message GetUserShortsResponse {
+    repeated BunchLink links = 1;
+    int32 code = 2;
+}
+
+message CodeResponse {
+    int32 code = 1;
+}
+
+message DeleteRequest {
+    repeated int32 id = 1;
+}
+
+message StatsResponse {
+    int32 URLs = 1;
+    int32 Users = 2;
+    int32 code = 3;
+}
+
+
+service Shortener {
+    rpc CreateShort(URLRequest) returns (URLResponse);
+    rpc APICreateShort(URLRequest) returns (URLResponse);
+    rpc BunchSaveJSON(BunchSaveRequest) returns (BunchSaveResponse);
+    rpc GetShort(URLRequest) returns (URLResponse);
+    rpc GetUserShorts(Empty) returns (GetUserShortsResponse);
+    rpc Ping(Empty) returns (CodeResponse);
+    rpc Delete(DeleteRequest) returns (CodeResponse);
+    rpc Stats(Empty) returns (StatsResponse);
+}

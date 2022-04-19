@@ -18,6 +18,9 @@ type (
 		ShortURL    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
 	}
+	Result struct {
+		Result string `json:"result"`
+	}
 )
 
 func (links Links) MarshalJSON() ([]byte, error) {

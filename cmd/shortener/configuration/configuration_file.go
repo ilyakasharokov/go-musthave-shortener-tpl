@@ -30,10 +30,10 @@ func getConfigFromFIle(fileName string) (Config, error) {
 	}
 
 	return Config{
-		ServerAddress: cfg.ServerAddress,
-		BaseURL:       cfg.BaseURL,
-		FileStoragePath:      cfg.FileStoragePath,
-		EnableHTTPS:   cfg.EnableHTTPS,
-		Database: cfg.DatabaseDSN,
+		ServerAddress:   cfg.ServerAddress,
+		BaseURL:         cfg.BaseURL,
+		FileStoragePath: cfg.FileStoragePath,
+		EnableHTTPS:     cfg.EnableHTTPS,
+		Database:        cfg.DatabaseDSN,
 	}, nil
 }

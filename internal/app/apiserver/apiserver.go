@@ -5,10 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"ilyakasharokov/internal/app/certificate"
+	"ilyakasharokov/internal/app/controller"
 	"ilyakasharokov/internal/app/handlers"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/repositorydb"
-	"ilyakasharokov/internal/app/worker"
 	"net"
 	"net/http"
 
@@ -24,17 +24,17 @@ type APIServer struct {
 	db   *sql.DB
 }
 
-func New(repo *repositorydb.RepositoryDB, serverAddress string, baseURL string, trustedSubnet *net.IPNet, database *sql.DB, wp *worker.WorkerPool) *APIServer {
+func New(repo *repositorydb.RepositoryDB, serverAddress string, trustedSubnet *net.IPNet, database *sql.DB, ctrl *controller.Controller) *APIServer {
 	r := chi.NewRouter()
 	r.Use(middlewares.GzipHandle)
 	r.Use(middlewares.CookieMiddleware)
-	r.Post("/", handlers.CreateShort(repo, baseURL))
-	r.Post("/api/shorten", handlers.APICreateShort(repo, baseURL))
-	r.Post("/api/shorten/batch", handlers.BunchSaveJSON(repo, baseURL))
+	r.Post("/", handlers.CreateShort(ctrl))
+	r.Post("/api/shorten", handlers.APICreateShort(ctrl))
+	r.Post("/api/shorten/batch", handlers.BunchSaveJSON(ctrl))
 	r.Get("/{id:[0-9a-zA-z]+}", handlers.GetShort(repo))
 	r.Get("/user/urls", handlers.GetUserShorts(repo))
 	r.Get("/ping", handlers.Ping(database))
-	r.Delete("/api/user/urls", handlers.Delete(repo, wp))
+	r.Delete("/api/user/urls", handlers.Delete(ctrl))
 	r.Get("/api/internal/stats", handlers.Stats(repo, trustedSubnet))
 
 	r.Mount("/debug/", middleware.Profiler())
@@ -61,7 +61,7 @@ func (s *APIServer) Start(https bool) error {
 			return err
 		}
 		return s.srv.ListenAndServeTLS("server.crt", "server.key")
-	}else{
+	} else {
 		log.Info().Msg("Start http server on " + s.srv.Addr)
 		return s.srv.ListenAndServe()
 	}

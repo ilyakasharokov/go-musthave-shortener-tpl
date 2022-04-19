@@ -14,6 +14,7 @@ var paramNames = map[string]string{
 	"ENABLE_HTTPS":      "s",
 	"CONFIG":            "c",
 	"TRUSTED_SUBNET":    "t",
+	"ENABLE_GRPC":       "g",
 }
 
 type Config struct {
@@ -24,6 +25,7 @@ type Config struct {
 	EnableHTTPS     bool   `env:"ENABLE_HTTPS"`
 	Config          string `env:"CONFIG"`
 	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
+	EnableGRPC      bool   `env:"ENABLE_GRPC"`
 }
 
 func New() Config {
@@ -44,6 +46,7 @@ func New() Config {
 	}
 
 	c.EnableHTTPS = cEnv.EnableHTTPS
+	c.EnableGRPC = cEnv.EnableGRPC
 	if cEnv.Database != "" {
 		c.Database = cEnv.Database
 	}
@@ -65,7 +68,7 @@ func New() Config {
 	db := flag.String(paramNames["DATABASE_DSN"], "", "")
 	tls := flag.Bool(paramNames["ENABLE_HTTPS"], false, "")
 	ts := flag.String(paramNames["TRUSTED_SUBNET"], "", "")
-
+	grpc := flag.Bool(paramNames["ENABLE_GRPC"], false, "")
 	flag.Parse()
 	if *bu != "" {
 		c.BaseURL = *bu
@@ -84,6 +87,9 @@ func New() Config {
 	}
 	if *ts != "" {
 		c.TrustedSubnet = *ts
+	}
+	if grpc != nil {
+		c.EnableHTTPS = *grpc
 	}
 	return c
 }
