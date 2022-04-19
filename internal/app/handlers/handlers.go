@@ -56,7 +56,7 @@ func CreateShort(ctrl *controller.Controller) func(w http.ResponseWriter, r *htt
 			// Convert interface type to user.UniqUser
 			userID = userIDCtx.(string)
 		}
-		err, httpCode, shortURL := ctrl.CreateShort(r.Context(), url, userID)
+		httpCode, shortURL, err := ctrl.CreateShort(r.Context(), url, userID)
 		if err != nil {
 			http.Error(w, err.Error(), httpCode)
 			return
@@ -81,7 +81,7 @@ func APICreateShort(ctrl *controller.Controller) func(w http.ResponseWriter, r *
 		if userIDCtx != nil {
 			userID = userIDCtx.(string)
 		}
-		err, httpCode, result := ctrl.APICreateShort(r.Context(), body, userID)
+		httpCode, result, err := ctrl.APICreateShort(r.Context(), body, userID)
 		if err != nil {
 			http.Error(w, err.Error(), httpCode)
 			return
@@ -129,7 +129,6 @@ func GetShort(repo RepoDBModel) http.HandlerFunc {
 // GetUserShorts получение списка пользовательских URL. В качестве параметра принимает репозиторий.
 func GetUserShorts(repo RepoDBModel) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
 		userID := "default"
 		if userIDCtx != nil {
@@ -180,7 +179,7 @@ func BunchSaveJSON(ctrl *controller.Controller) http.HandlerFunc {
 			userID = userIDCtx.(string)
 		}
 		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		err, httpCode, shorts := ctrl.BunchSaveJSON(r.Context(), urls, userID)
+		httpCode, shorts, err := ctrl.BunchSaveJSON(r.Context(), urls, userID)
 		if err != nil {
 			http.Error(w, err.Error(), httpCode)
 			return
@@ -232,7 +231,7 @@ func Delete(ctrl *controller.Controller) func(w http.ResponseWriter, r *http.Req
 			// Convert interface type to user.UniqUser
 			userID = userIDCtx.(string)
 		}
-		err, httpCode := ctrl.Delete(ids, userID)
+		httpCode, err := ctrl.Delete(ids, userID)
 		if err != nil {
 			http.Error(w, err.Error(), httpCode)
 			return
@@ -248,9 +247,9 @@ func Stats(repo RepoDBModel, trustedSubnet *net.IPNet) func(w http.ResponseWrite
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
-		realIp := r.Header.Get("X-Real-IP")
-		reqIp := net.ParseIP(realIp)
-		ok := trustedSubnet.Contains(reqIp)
+		realIP := r.Header.Get("X-Real-IP")
+		reqIP := net.ParseIP(realIP)
+		ok := trustedSubnet.Contains(reqIP)
 		if !ok {
 			w.WriteHeader(http.StatusForbidden)
 			return

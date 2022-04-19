@@ -39,13 +39,6 @@ type ResponseWriterMap struct {
 	code int
 }
 
-// NewResponseWriterMap init new ResponseWriterMap
-func NewResponseWriterMap() *ResponseWriterMap {
-	rw := ResponseWriterMap{}
-	rw.head = make(http.Header)
-	return &rw
-}
-
 func (rw *ResponseWriterMap) Header() http.Header {
 	return rw.head
 }
@@ -88,7 +81,7 @@ func getUserID(ctx context.Context) string {
 
 func (s *ShortenerServer) CreateShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
-	err, code, shortURL := s.ctrl.CreateShort(ctx, req.URL, userID)
+	code, shortURL, err := s.ctrl.CreateShort(ctx, req.URL, userID)
 	header := metadata.Pairs("user_id", userID)
 	grpc.SendHeader(ctx, header)
 	if err != nil {
@@ -102,7 +95,7 @@ func (s *ShortenerServer) CreateShort(ctx context.Context, req *shortener.URLReq
 
 func (s *ShortenerServer) APICreateShort(ctx context.Context, req *shortener.URLRequest) (rsp *shortener.URLResponse, err error) {
 	userID := getUserID(ctx)
-	err, code, shortURL := s.ctrl.CreateShort(ctx, req.URL, userID)
+	code, shortURL, err := s.ctrl.CreateShort(ctx, req.URL, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +115,7 @@ func (s *ShortenerServer) BunchSaveJSON(ctx context.Context, req *shortener.Bunc
 		}
 		links = append(links, link)
 	}
-	err, _, shorts := s.ctrl.BunchSaveJSON(ctx, links, userID)
+	_, shorts, err := s.ctrl.BunchSaveJSON(ctx, links, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -199,11 +192,11 @@ func (s *ShortenerServer) Delete(ctx context.Context, req *shortener.DeleteReque
 		idsInt = append(idsInt, int(id))
 	}
 	rsp = new(shortener.CodeResponse)
-	err, httpCode := s.ctrl.Delete(idsInt, userID)
+	code, err := s.ctrl.Delete(idsInt, userID)
 	if err != nil {
 		return nil, err
 	}
-	rsp.Code = int32(httpCode)
+	rsp.Code = int32(code)
 	return rsp, err
 }
 
@@ -225,8 +218,8 @@ func (s *ShortenerServer) Stats(ctx context.Context, _ *shortener.Empty) (rsp *s
 		rsp.Code = http.StatusForbidden
 		return rsp, nil
 	}
-	reqIp := net.ParseIP(realIP)
-	ok = s.subnet.Contains(reqIp)
+	reqIP := net.ParseIP(realIP)
+	ok = s.subnet.Contains(reqIP)
 	if !ok {
 		rsp.Code = http.StatusForbidden
 		return rsp, nil

@@ -49,16 +49,16 @@ func NewController(repo RepoDBModel, baseURL string, db *sql.DB, wp *worker.Work
 }
 
 // CreateShort cоздает URL из параметра url для юзера userID. Возвращает ошибку и shortURL
-func (c *Controller) CreateShort(ctx context.Context, url string, userID string) (err error, httpCode int, shortURL string) {
+func (c *Controller) CreateShort(ctx context.Context, url string, userID string) (httpCode int, shortURL string, err error) {
 	_, err = urltool.ParseRequestURI(url)
 	if err != nil {
-		return errors.New("The url is incorrect"), http.StatusBadRequest, ""
+		return http.StatusBadRequest, "", errors.New("The url is incorrect")
 	}
 	var code string
 	for {
 		code, err = base62.Decode(url)
 		if err != nil {
-			return errors.New("URL decode error"), http.StatusInternalServerError, ""
+			return http.StatusInternalServerError, "", errors.New("URL decode error")
 		}
 		if !c.repo.CheckExist(model.User(userID), code) {
 			break
@@ -67,14 +67,14 @@ func (c *Controller) CreateShort(ctx context.Context, url string, userID string)
 	link, err := c.repo.GetItem(model.User(userID), code, ctx)
 	shortURL = fmt.Sprintf("%s/%s", c.baseURL, code)
 	if err == nil {
-		return errors.New("Already exist"), http.StatusConflict, shortURL
+		return http.StatusConflict, shortURL, errors.New("Already exist")
 	}
 	link.URL = url
 	err = c.repo.AddItem(model.User(userID), code, link, ctx)
 	if err != nil {
-		return errors.New("Add url error"), http.StatusInternalServerError, ""
+		return http.StatusInternalServerError, "", errors.New("Add url error")
 	}
-	return nil, http.StatusCreated, shortURL
+	return http.StatusCreated, shortURL, nil
 }
 
 func (c *Controller) ParseJSON(data []byte) (URL, error) {
@@ -93,10 +93,10 @@ func (c *Controller) ParseJSON(data []byte) (URL, error) {
 	return url, nil
 }
 
-func (c *Controller) APICreateShort(ctx context.Context, data []byte, userID string) (err error, httpCode int, result model.Result) {
+func (c *Controller) APICreateShort(ctx context.Context, data []byte, userID string) (httpCode int, result model.Result, err error) {
 	url, err := c.ParseJSON(data)
 	if err != nil {
-		return err, http.StatusBadRequest, result
+		return http.StatusBadRequest, result, err
 	}
 	link := model.Link{
 		URL: url.URL,
@@ -105,7 +105,7 @@ func (c *Controller) APICreateShort(ctx context.Context, data []byte, userID str
 	for {
 		code, err = base62.Decode(link.URL)
 		if err != nil {
-			return errors.New("URL decode error"), http.StatusInternalServerError, result
+			return http.StatusInternalServerError, result, errors.New("URL decode error")
 		}
 		if !c.repo.CheckExist(model.User(userID), code) {
 			break
@@ -116,43 +116,43 @@ func (c *Controller) APICreateShort(ctx context.Context, data []byte, userID str
 	newlink := fmt.Sprintf("%s/%s", c.baseURL, code)
 	result = model.Result{Result: newlink}
 	if err == nil {
-		return nil, http.StatusConflict, result
+		return http.StatusConflict, result, nil
 	}
 
 	err = c.repo.AddItem(model.User(userID), code, link, ctx)
 	if err != nil {
-		return errors.New("Add url error"), http.StatusInternalServerError, result
+		return http.StatusInternalServerError, result, errors.New("Add url error")
 	}
-	return nil, http.StatusCreated, result
+	return http.StatusCreated, result, nil
 }
 
-func (c *Controller) BunchSaveJSON(ctx context.Context, links []model.Link, userID string) (err error, httpCode int, shorts []model.ShortLink) {
+func (c *Controller) BunchSaveJSON(ctx context.Context, links []model.Link, userID string) (httpCode int, shorts []model.ShortLink, err error) {
 	shorts, err = c.repo.BunchSave(ctx, model.User(userID), links)
 	if err != nil {
 		log.Err(err).Msg("Can't save links")
-		return errors.New("can't save"), http.StatusBadRequest, nil
+		return http.StatusBadRequest, nil, errors.New("can't save")
 	}
 	// Prepare results
 	for k := range shorts {
 		shorts[k].Short = fmt.Sprintf("%s/%s", c.baseURL, shorts[k].Short)
 	}
-	return nil, http.StatusCreated, shorts
+	return http.StatusCreated, shorts, nil
 }
 
 func (c *Controller) GetShort() {
 
 }
 
-func (c *Controller) Delete(ids []int, userID string) (err error, httpCode int) {
+func (c *Controller) Delete(ids []int, userID string) (httpCode int, err error) {
 	if len(ids) == 0 {
-		return errors.New("No ids"), http.StatusBadRequest
+		return http.StatusBadRequest, errors.New("No ids")
 	}
 	bf := func(_ context.Context) error {
 		c.repo.RemoveItems(model.User(userID), ids)
 		return nil
 	}
 	c.wp.Push(bf)
-	return nil, http.StatusAccepted
+	return http.StatusAccepted, nil
 }
 
 /*
