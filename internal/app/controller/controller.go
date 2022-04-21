@@ -154,11 +154,3 @@ func (c *Controller) Delete(ids []int, userID string) (httpCode int, err error) 
 	c.wp.Push(bf)
 	return http.StatusAccepted, nil
 }
-
-/*
-r.Post("/api/shorten/batch", handlers.BunchSaveJSON(repo, baseURL))
-r.Get("/{id:[0-9a-zA-z]+}", handlers.GetShort(repo))
-r.Get("/user/urls", handlers.GetUserShorts(repo))
-r.Get("/ping", handlers.Ping(database))
-r.Delete("/api/user/urls", handlers.Delete(repo, wp))
-r.Get("/api/internal/stats", handlers.Stats(repo, trustedSubnet))*/
