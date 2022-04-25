@@ -50,7 +50,7 @@ func New() Config {
 	if cEnv.Database != "" {
 		c.Database = cEnv.Database
 	}
-	if c.ServerAddress == "" || cEnv.ServerAddress != "localhost:8080" {
+	if c.ServerAddress == "" || cEnv.ServerAddress != ":8080" {
 		c.ServerAddress = cEnv.ServerAddress
 	}
 	if cEnv.BaseURL != "" {

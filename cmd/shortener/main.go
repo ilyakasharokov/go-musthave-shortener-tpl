@@ -54,7 +54,7 @@ func main() {
 		}
 	}
 	ctrl := controller.NewController(repo, cfg.BaseURL, db, wp, trustedSubnet)
-	s := apiserver.New(repo, "127.0.0.1:8080", trustedSubnet, db, ctrl)
+	s := apiserver.New(repo, cfg.ServerAddress, trustedSubnet, db, ctrl)
 	go func() {
 		log.Println(s.Start(cfg.EnableHTTPS))
 		cancel()
