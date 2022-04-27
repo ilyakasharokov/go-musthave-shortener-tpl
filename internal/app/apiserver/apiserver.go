@@ -28,6 +28,10 @@ func New(repo *repositorydb.RepositoryDB, serverAddress string, trustedSubnet *n
 	r := chi.NewRouter()
 	r.Use(middlewares.GzipHandle)
 	r.Use(middlewares.CookieMiddleware)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
 	r.Post("/", handlers.CreateShort(ctrl))
 	r.Post("/api/shorten", handlers.APICreateShort(ctrl))
 	r.Post("/api/shorten/batch", handlers.BunchSaveJSON(ctrl))
