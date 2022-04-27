@@ -5,24 +5,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"ilyakasharokov/internal/app/base62"
+	"ilyakasharokov/internal/app/controller"
 	"ilyakasharokov/internal/app/middlewares"
 	"ilyakasharokov/internal/app/model"
-	"ilyakasharokov/internal/app/worker"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
-	urltool "net/url"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 )
-
-type URL struct {
-	URL string `json:"url"`
-}
 
 type RepoModel interface {
 	AddItem(model.User, string, model.Link) error
@@ -38,12 +32,14 @@ type RepoDBModel interface {
 	GetByUser(model.User, context.Context) (model.Links, error)
 	BunchSave(context.Context, model.User, []model.Link) ([]model.ShortLink, error)
 	RemoveItems(model.User, []int) error
+	CountURLsAndUsers(ctx context.Context) (int, int, error)
 }
 
 // CreateShort cоздает URL из тела запроса. В качестве параметра принимает репозиторий и адрес для шорта.
-func CreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+func CreateShort(ctrl *controller.Controller) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
+		w.Header().Add("Content-type", "text/plain; charset=utf-8")
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "Body read error", http.StatusBadRequest)
@@ -54,138 +50,44 @@ func CreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r
 			http.Error(w, "Body is empty", http.StatusBadRequest)
 			return
 		}
-
-		_, err = urltool.ParseRequestURI(url)
-
-		if err != nil {
-			http.Error(w, "The url is incorrect", http.StatusBadRequest)
-			return
-		}
-
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
 		userID := "default"
 		if userIDCtx != nil {
 			// Convert interface type to user.UniqUser
 			userID = userIDCtx.(string)
 		}
-
-		link := model.Link{
-			URL: url,
-		}
-
-		var code string
-		for {
-			code, err = base62.Decode(link.URL)
-			if err != nil {
-				http.Error(w, "URL decode error", http.StatusInternalServerError)
-				return
-			}
-			if !repo.CheckExist(model.User(userID), code) {
-				break
-			}
-		}
-		link, err = repo.GetItem(model.User(userID), code, r.Context())
-		result := fmt.Sprintf("%s/%s", baseURL, code)
-		if err == nil {
-			http.Error(w, "Already exist", http.StatusConflict)
-			w.Header().Add("Content-type", "text/plain; charset=utf-8")
-			w.Write([]byte(result))
-			return
-		}
-
-		err = repo.AddItem(model.User(userID), code, link, r.Context())
+		httpCode, shortURL, err := ctrl.CreateShort(r.Context(), url, userID)
 		if err != nil {
-			http.Error(w, "Add url error", http.StatusInternalServerError)
+			http.Error(w, err.Error(), httpCode)
 			return
-		} else {
-			w.WriteHeader(http.StatusCreated)
 		}
-		w.Header().Add("Content-type", "text/plain; charset=utf-8")
-		w.Write([]byte(result))
+		w.WriteHeader(httpCode)
+		w.Write([]byte(shortURL))
 	}
 }
 
 // APICreateShort запрашивает создание URL из json. В качестве параметра принимает репозиторий и адрес для шорта.
-func APICreateShort(repo RepoDBModel, baseURL string) func(w http.ResponseWriter, r *http.Request) {
+func APICreateShort(ctrl *controller.Controller) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "body read error", http.StatusBadRequest)
 			return
 		}
-		url := URL{}
-		err = json.Unmarshal(body, &url)
-		if err != nil {
-			http.Error(w, "JSON is incorrect", http.StatusBadRequest)
-			return
-		}
-		if url.URL == "" {
-			http.Error(w, "URL is empty", http.StatusBadRequest)
-			return
-		}
-
-		_, err = urltool.ParseRequestURI(url.URL)
-
-		if err != nil {
-			http.Error(w, "the url is incorrect", http.StatusBadRequest)
-			return
-		}
-
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
 		userID := "default"
 		if userIDCtx != nil {
-			// Convert interface type to user.UniqUser
 			userID = userIDCtx.(string)
 		}
-
-		link := model.Link{
-			URL: url.URL,
-		}
-
-		var code string
-		for {
-			code, err = base62.Decode(link.URL)
-			if err != nil {
-				http.Error(w, "URL decode error", http.StatusInternalServerError)
-				return
-			}
-			if !repo.CheckExist(model.User(userID), code) {
-				break
-			}
-		}
-
-		_, err = repo.GetItem(model.User(userID), code, r.Context())
-		newlink := fmt.Sprintf("%s/%s", baseURL, code)
-		result := struct {
-			Result string `json:"result"`
-		}{Result: newlink}
-		if err == nil {
-			w.Header().Add("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusConflict)
-			body, err = json.Marshal(result)
-			if err != nil {
-				http.Error(w, "response JSON error", http.StatusInternalServerError)
-				return
-			}
-			w.Write(body)
-			return
-		}
-
-		err = repo.AddItem(model.User(userID), code, link, r.Context())
+		httpCode, result, err := ctrl.APICreateShort(r.Context(), body, userID)
 		if err != nil {
-			http.Error(w, "Add url error", http.StatusInternalServerError)
-			return
-		} else {
-			w.WriteHeader(http.StatusCreated)
-		}
-
-		body, err = json.Marshal(result)
-		if err != nil {
-			http.Error(w, "response JSON error", http.StatusInternalServerError)
+			http.Error(w, err.Error(), httpCode)
 			return
 		}
-
+		w.WriteHeader(httpCode)
+		body, _ = json.Marshal(result)
 		w.Write(body)
 	}
 }
@@ -218,6 +120,7 @@ func GetShort(repo RepoDBModel) http.HandlerFunc {
 		if entity.Deleted {
 			log.Info().Str("id", entity.ID).Msg("Link is deleted")
 			http.Error(w, "Deleted", http.StatusGone)
+			return
 		}
 		http.Redirect(w, r, entity.URL, http.StatusTemporaryRedirect)
 	}
@@ -226,7 +129,6 @@ func GetShort(repo RepoDBModel) http.HandlerFunc {
 // GetUserShorts получение списка пользовательских URL. В качестве параметра принимает репозиторий.
 func GetUserShorts(repo RepoDBModel) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
 		userID := "default"
 		if userIDCtx != nil {
@@ -254,27 +156,20 @@ func GetUserShorts(repo RepoDBModel) http.HandlerFunc {
 	}
 }
 
-func bodyFromJSON(w *http.ResponseWriter, r *http.Request) ([]byte, error) {
-	var body []byte
-	if r.Body == http.NoBody {
-		http.Error(*w, "no content", http.StatusBadRequest)
-		return body, errors.New("bad request")
-	}
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(*w, "unknown url", http.StatusBadRequest)
-		return body, errors.New("unknown url")
-	}
-	return body, nil
-}
-
 // BunchSaveJSON загружает набор урлов в репозиторий. В качестве параметра принимает репозиторий и адрес для шорта.
-func BunchSaveJSON(repo RepoDBModel, baseURL string) http.HandlerFunc {
+func BunchSaveJSON(ctrl *controller.Controller) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := bodyFromJSON(&w, r)
+		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Err(err).Msg("Can't read body")
 			http.Error(w, "Can't read body", http.StatusBadRequest)
+			return
+		}
+		var urls []model.Link
+		err = json.Unmarshal(body, &urls)
+		if err != nil {
+			log.Err(err).Msg("Unmarshal json error")
+			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
@@ -283,40 +178,20 @@ func BunchSaveJSON(repo RepoDBModel, baseURL string) http.HandlerFunc {
 			// Convert interface type to user.UniqUser
 			userID = userIDCtx.(string)
 		}
-		// Get url from json data
-		var urls []model.Link
-		err = json.Unmarshal(body, &urls)
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		httpCode, shorts, err := ctrl.BunchSaveJSON(r.Context(), urls, userID)
 		if err != nil {
-			log.Err(err).Msg("Unmarshal json error")
-			http.Error(w, "bad json", http.StatusBadRequest)
+			http.Error(w, err.Error(), httpCode)
 			return
 		}
-		shorts, err := repo.BunchSave(r.Context(), model.User(userID), urls)
-		if err != nil {
-			log.Err(err).Msg("Can't save links")
-			http.Error(w, "can't save", http.StatusBadRequest)
-			return
-		}
-		// Prepare results
-		for k := range shorts {
-			shorts[k].Short = fmt.Sprintf("%s/%s", baseURL, shorts[k].Short)
-		}
-
-		body, err = json.Marshal(shorts)
+		rsp, err := json.Marshal(shorts)
 		if err != nil {
 			log.Err(err).Msg("Marshal links error")
-			http.Error(w, "Marshal error", http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
-
-		// Prepare response
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
-		_, err = w.Write(body)
-		if err != nil {
-			log.Err(err).Msg("Body write error")
-			http.Error(w, "Body write error", http.StatusBadRequest)
-		}
-
+		w.WriteHeader(httpCode)
+		w.Write(rsp)
 	}
 }
 
@@ -334,7 +209,7 @@ func Ping(db *sql.DB) http.HandlerFunc {
 }
 
 // Delete принимает множество URL в очередь на удаление.
-func Delete(repo RepoDBModel, workerPool *worker.WorkerPool) func(w http.ResponseWriter, r *http.Request) {
+func Delete(ctrl *controller.Controller) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -350,24 +225,49 @@ func Delete(repo RepoDBModel, workerPool *worker.WorkerPool) func(w http.Respons
 			http.Error(w, "JSON is incorrect", http.StatusBadRequest)
 			return
 		}
-		if len(ids) == 0 {
-			http.Error(w, "No ids", http.StatusBadRequest)
-			return
-		}
 		userIDCtx := r.Context().Value(middlewares.UserIDCtxName)
 		userID := "default"
 		if userIDCtx != nil {
 			// Convert interface type to user.UniqUser
 			userID = userIDCtx.(string)
 		}
-
-		bf := func(_ context.Context) error {
-			repo.RemoveItems(model.User(userID), ids)
-			return nil
+		httpCode, err := ctrl.Delete(ids, userID)
+		if err != nil {
+			http.Error(w, err.Error(), httpCode)
+			return
 		}
+		w.WriteHeader(httpCode)
+	}
+}
 
-		workerPool.Push(bf)
-		w.WriteHeader(http.StatusAccepted)
-
+// Stats возвращает кол-во урлов и юзеров в базе. Только для доверенной подсети trustedSubnet
+func Stats(repo RepoDBModel, trustedSubnet *net.IPNet) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if trustedSubnet == nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		realIP := r.Header.Get("X-Real-IP")
+		reqIP := net.ParseIP(realIP)
+		ok := trustedSubnet.Contains(reqIP)
+		if !ok {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		users, urls, err := repo.CountURLsAndUsers(r.Context())
+		if err != nil {
+			http.Error(w, "sql error", http.StatusInternalServerError)
+			return
+		}
+		response := struct {
+			Urls  int `json:"urls"`
+			Users int `json:"users"`
+		}{
+			Urls:  urls,
+			Users: users,
+		}
+		jsn, _ := json.Marshal(response)
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsn)
 	}
 }

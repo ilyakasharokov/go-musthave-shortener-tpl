@@ -11,6 +11,7 @@ on:
       - sprint7
       - sprint8
       - sprint9
+      - sprint10
 jobs:
 
   shortenertest:
